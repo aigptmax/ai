@@ -3,23 +3,26 @@ import { cmd } from '../command.js';
 import axios from 'axios';
 import FormData from 'form-data';
 import path from 'path';
-import { Web, Pubg } from '../lib/jawi.js';
+import { Pubg } from '../lib/jawi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ============================================
-// API CONFIG
-// ============================================
 const API_BASES = [
-    Web,
-    "https://jawadtechhub.onrender.com"
+    "https://xjawadtech.vercel.app",
+    "https://jawadtechhub.vercel.app"
 ];
 const API_KEY = Pubg;
 
-const getRandomBase = () => API_BASES[Math.floor(Math.random() * API_BASES.length)];
+function getRandomBase() {
+    const shuffled = [...API_BASES];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled[0];
+}
 
-// ImgBB API Keys list (fallback)
 const IMGBB_API_KEYS = [
   'ebb2d6cad946fa45d7d9c4cc7dfa87e3',
   'b9b79efc2a2cf5380b57974bba4ce6d4',
@@ -33,9 +36,6 @@ function getRandomApiKey() {
   return IMGBB_API_KEYS[randomIndex];
 }
 
-// ============================================
-// Helper: Get extension from mimetype
-// ============================================
 function extFromMime(mimeType) {
   if (mimeType.includes('image/jpeg')) return '.jpg';
   if (mimeType.includes('image/png')) return '.png';
@@ -52,9 +52,6 @@ function extFromMime(mimeType) {
   return '.bin';
 }
 
-// ============================================
-// Helper: Upload to Catbox via your API
-// ============================================
 async function uploadToCatbox(buffer, filename) {
   const form = new FormData();
   form.append('file', buffer, filename);
@@ -77,9 +74,6 @@ async function uploadToCatbox(buffer, filename) {
   return data.result.url;
 }
 
-// ============================================
-// Helper: Upload to ImgBB (image only)
-// ============================================
 async function uploadToImgbb(buffer) {
   const apiKey = getRandomApiKey();
 
@@ -101,9 +95,6 @@ async function uploadToImgbb(buffer) {
   return imageUrl;
 }
 
-// ============================================
-// COMMAND: .tourl
-// ============================================
 cmd({
   pattern: "url",
   alias: ["imgtourl", "imgurl", "tourl", "geturl", "upload"],
@@ -134,14 +125,12 @@ cmd({
     let finalUrl = null;
     let source = null;
 
-    // ---- 1. Try Catbox first ----
     try {
       finalUrl = await uploadToCatbox(mediaBuffer, fileName);
       source = 'Catbox';
     } catch (catboxErr) {
       console.error('⚠️ Catbox failed:', catboxErr.message);
 
-      // ---- 2. Fallback to ImgBB (images only) ----
       if (isImage) {
         try {
           finalUrl = await uploadToImgbb(mediaBuffer);
