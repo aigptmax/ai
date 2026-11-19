@@ -4,13 +4,26 @@ import axios from 'axios';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Web, Pubg } from '../lib/jawi.js';
+import { Pubg } from '../lib/jawi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 
-const API_BASES = [Web, "https://jawadtechhub.onrender.com"];
+const API_BASES = [
+    "https://jawadtechhubxd.onrender.com",
+    "https://jawadtechhub.vercel.app",
+    "https://jawadtechhub.onrender.com"
+];
 const API_KEY = Pubg;
-const getRandomBase = () => API_BASES[Math.floor(Math.random() * API_BASES.length)];
+
+// Shuffle servers and pick 1 random each time
+function getRandomBase() {
+    const shuffled = [...API_BASES];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled[0];
+}
 
 // ============================================
 // HELPERS
