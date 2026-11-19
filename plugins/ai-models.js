@@ -1,18 +1,25 @@
 import { fileURLToPath } from 'url';
 import { cmd } from '../command.js';
 import axios from 'axios';
-import { Web, Pubg } from '../lib/jawi.js';
+import { Pubg } from '../lib/jawi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 
 const API_BASES = [
-    Web,
-    "https://jawadtechhub.onrender.com"
+    "https://xjawadtech.vercel.app",
+    "https://jawadtechhub.vercel.app"
 ];
 
 const API_KEY = Pubg;
 
-const getRandomBase = () => API_BASES[Math.floor(Math.random() * API_BASES.length)];
+function getRandomBase() {
+    const shuffled = [...API_BASES];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled[0];
+}
 
 async function askAI(prompt) {
     const apiUrl = `${getRandomBase()}/gpt2?q=${encodeURIComponent(prompt)}&key=${API_KEY}`;
@@ -20,8 +27,6 @@ async function askAI(prompt) {
     if (res.data.status) return res.data.result;
     throw new Error("API Error");
 }
-
-// ==================== CORE COMMANDS ====================
 
 cmd({
     pattern: "ai",
@@ -50,8 +55,6 @@ cmd({
         reply(answer);
     } catch (e) { reply("❌ Failed to connect to API."); }
 });
-
-// ==================== ChatGPT MODELS ====================
 
 cmd({
     pattern: "gpt",
@@ -262,8 +265,6 @@ cmd({
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
 
-// ==================== OPENAI o-SERIES ====================
-
 cmd({
     pattern: "o1",
     desc: "Chat with OpenAI o1",
@@ -363,8 +364,6 @@ cmd({
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
 
-// ==================== COPILOT MODELS ====================
-
 cmd({
     pattern: "copilot",
     desc: "Chat with Copilot AI",
@@ -397,8 +396,6 @@ cmd({
     if (!text) return reply("❌ *Usage:* .elitecopilot Your question");
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
-
-// ==================== DEEPSEEK MODELS ====================
 
 cmd({
     pattern: "deepseek",
@@ -531,8 +528,6 @@ cmd({
     if (!text) return reply("❌ *Usage:* .deepseekchat Your question");
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
-
-// ==================== GEMINI MODELS ====================
 
 cmd({
     pattern: "gemini",
@@ -743,8 +738,6 @@ cmd({
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
 
-// ==================== GROK MODELS ====================
-
 cmd({
     pattern: "grok",
     desc: "Chat with Grok",
@@ -865,8 +858,6 @@ cmd({
     if (!text) return reply("❌ *Usage:* .grokvision Your question");
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
-
-// ==================== CLAUDE MODELS ====================
 
 cmd({
     pattern: "claude",
@@ -1077,8 +1068,6 @@ cmd({
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
 
-// ==================== QWEN MODELS ====================
-
 cmd({
     pattern: "qwen",
     desc: "Chat with Qwen",
@@ -1199,8 +1188,6 @@ cmd({
     if (!text) return reply("❌ *Usage:* .qwenturbo Your question");
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
-
-// ==================== OTHER AI MODELS ====================
 
 cmd({
     pattern: "llama2",
@@ -1609,8 +1596,6 @@ cmd({
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
 });
 
-// ==================== SPECIALTY AI COMMANDS ====================
-
 cmd({
     pattern: "talkai",
     desc: "Chat with Talk AI",
@@ -1829,4 +1814,4 @@ cmd({
 }, async (conn, mek, m, { from, text, reply }) => {
     if (!text) return reply("❌ *Usage:* .grammar Your text to check");
     try { reply(await askAI(text)); } catch (e) { reply("❌ Failed to connect to API."); }
-})
+});
