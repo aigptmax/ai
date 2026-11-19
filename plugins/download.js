@@ -9,1040 +9,176 @@ import path from 'path';
 import os from 'os';
 import { File } from 'megajs';
 import converter from '../lib/converter.js';
+import { Pubg } from '../lib/jawi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 
-// Helper function to extract video ID
-function getVideoId(url) {
-    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    return match ? match[1] : null;
+// ============================================
+// API CONFIG (Shuffle System)
+// ============================================
+const API_BASES = [
+    "https://xjawadtech.vercel.app",
+    "https://jawadtechhub.vercel.app"
+];
+const API_KEY = Pubg;
+
+function getRandomBase() {
+    const shuffled = [...API_BASES];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled[0];
 }
 
+// Helper function for Stylist Badi ABC Text
+const toStylistUpper = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    const uppercaseMap = {
+        'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ғ', 'g': 'ɢ', 'h': 'ʜ', 'i': 'ɪ',
+        'j': 'ᴊ', 'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 'o': 'ᴏ', 'p': 'ᴘ', 'q': 'ǫ', 'r': 'ʀ',
+        's': 's', 't': 'ᴛ', 'u': 'ᴜ', 'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ', 'z': 'ᴢ',
+        'A': 'ᴀ', 'B': 'ʙ', 'C': 'ᴄ', 'D': 'ᴅ', 'E': 'ᴇ', 'F': 'ғ', 'G': 'ɢ', 'H': 'ʜ', 'I': 'ɪ',
+        'J': 'ᴊ', 'K': 'ᴋ', 'L': 'ʟ', 'M': 'ᴍ', 'N': 'ɴ', 'O': 'ᴏ', 'P': 'ᴘ', 'Q': 'ǫ', 'R': 'ʀ',
+        'S': 's', 'T': 'ᴛ', 'U': 'ᴜ', 'V': 'ᴠ', 'W': 'ᴡ', 'X': 'x', 'Y': 'ʏ', 'Z': 'ᴢ'
+    };
+    return text.split('').map(char => uppercaseMap[char] || char).join('');
+};
 
-// ==================== TIKTOK VIDEO COMMANDS ====================
-
-cmd({
-    pattern: "tiktok",
-    alias: ["tt", "ttdl"],
-    desc: "Download TikTok video with robust API fallback & send retry",
-    category: "download",
-    react: "🎵",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply, userConfig }) => {
+// ==========================================
+// INSTAGRAM DOWNLOAD COMMON FUNCTION
+// ==========================================
+async function downloadInstagram(conn, mek, m, { from, reply, text, q, userConfig }) {
     try {
-        if (!text) return await reply("🎯 Please provide a valid TikTok link!\n\nExample:\n.tt link");
+        let finalUrl = null;
+        const quotedText = m.quoted?.text || m.quoted?.caption || '';
+        const quotedUrlMatch = quotedText.match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s]+/i);
+        if (quotedUrlMatch) finalUrl = quotedUrlMatch[0];
 
-        // 1. Extract URL from text inline
-        let url = null;
-        const match = text.match(/(https?:\/\/(?:www\.)?tiktok\.com\/[@\w.-]+\/video\/[\d]+)/);
-        if (match) {
-            url = match[0];
-        } else if (text.includes('tiktok.com')) {
-            url = text.trim();
+        if (!finalUrl) {
+            const fullText = text || q || '';
+            const urlMatch = fullText.match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s]+/i);
+            if (urlMatch) finalUrl = urlMatch[0];
         }
 
-        if (!url) return await reply("⚠️ Could not find a valid TikTok link in your message.");
+        if (!finalUrl) {
+            return reply(`❌ *Instagram link nahi mila!*\n\n📌 *Examples:*\n.ig https://instagram.com/reel/xxx\n.ig Watch this https://instagram.com/reel/xxx\n\nYa kisi message ko reply karke .ig likho.`);
+        }
 
         const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
-        // Helper function to fetch data from a specific API endpoint
-        const fetchData = async (apiUrl) => {
-            const res = await axios.get(apiUrl);
-            const data = res.data;
-            if (!data?.status || !data?.result) throw new Error("API returned invalid data");
-            return data;
-        };
-
-        let videoUrl, title, author, username;
-        let sendSuccess = false;
-
-        // --- ATTEMPT 1: API 1 ---
-        try {
-            const api1 = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`;
-            const data1 = await fetchData(api1);
-            
-            videoUrl = data1.result;
-            title = data1.metadata?.title || "Unknown Title";
-            author = data1.metadata?.author || "Unknown Author";
-            username = data1.metadata?.username || "unknown";
-
-            // Try to send the video immediately
-            await conn.sendMessage(from, {
-                video: { url: videoUrl },
-                mimetype: 'video/mp4',
-                caption: `🎵 ${title}\n👤 *Author:* ${author}\n⚡ *Username:* @${username}\n\n> ${DESCRIPTION}`
-            }, { quoted: mek });
-            
-            sendSuccess = true; // If we get here, sending worked!
-
-        } catch (e) {
-            console.log("Attempt 1 (API 1) failed or Send failed. Switching to API 2...");
-            // We do NOT return here. We proceed to Attempt 2.
-        }
-
-        // --- ATTEMPT 2: API 2 (Only if Attempt 1 failed) ---
-        if (!sendSuccess) {
-            try {
-                const api2 = `https://jawad-tech.vercel.app/download/ttdl?url=${encodeURIComponent(url)}`;
-                const data2 = await fetchData(api2);
-
-                videoUrl = data2.result;
-                title = data2.metadata?.title || "Unknown Title";
-                author = data2.metadata?.author?.nickname || data2.metadata?.author || "Unknown Author";
-                username = data2.metadata?.author?.username?.replace('@', '') || "unknown";
-
-                // Try to send the video from API 2
-                await conn.sendMessage(from, {
-                    video: { url: videoUrl },
-                    mimetype: 'video/mp4',
-                    caption: `🎵 ${title}\n👤 *Author:* ${author}\n⚡ *Username:* @${username}\n\n> ${DESCRIPTION}`
-                }, { quoted: mek });
-
-                sendSuccess = true;
-
-            } catch (e) {
-                console.error("Attempt 2 (API 2) also failed:", e);
-            }
-        }
-
-        // --- FINAL CHECK ---
-        if (!sendSuccess) {
-            return await reply("❌ Both APIs failed or the video links were broken. Please try again later.");
-        }
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("Critical Error in .tiktok:", e);
-        await reply("❌ An unexpected error occurred.");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
-
-cmd({
-    pattern: "tiktok2",
-    alias: ["tt2", "ttdl2"],
-    desc: "Download TikTok video using JawadTech API",
-    category: "download",
-    react: "🎬",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply, userConfig }) => {
-    try {
-        if (!text) return await reply("🎯 Please provide a valid TikTok link!");
-
-        // Extract URL inline
-        let url = null;
-        const match = text.match(/(https?:\/\/(?:www\.)?tiktok\.com\/[@\w.-]+\/video\/[\d]+)/);
-        if (match) {
-            url = match[0];
-        } else if (text.includes('tiktok.com')) {
-            url = text.trim();
-        }
-
-        if (!url) return await reply("⚠️ Could not find a valid TikTok link.");
-
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const api = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(url)}`;
-        const res = await axios.get(api);
-        const json = res.data;
-
-        if (!json?.status || !json?.result) return await reply("❌ Download failed! Try again later.");
-
-        const meta = json.metadata;
-
-        await conn.sendMessage(from, {
-            video: { url: json.result },
-            mimetype: 'video/mp4',
-            caption: `🎵 *${meta.title}*\n👤 *Author:* ${meta.author}\n📱 *Username:* @${meta.username}\n🌍 *Region:* ${meta.region}\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("Error in .tiktok2:", e);
-        await reply("❌ Error occurred while downloading TikTok video!");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
-
-cmd({
-    pattern: "tiktok3",
-    alias: ["tt3", "ttdl3"],
-    desc: "Download HD TikTok videos with detailed stats",
-    category: "download",
-    react: "🎬",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply, userConfig }) => {
-    try {
-        if (!text) return await reply("🎯 Please provide a valid TikTok link!");
-
-        // Extract URL inline
-        let url = null;
-        const match = text.match(/(https?:\/\/(?:www\.)?tiktok\.com\/[@\w.-]+\/video\/[\d]+)/);
-        if (match) {
-            url = match[0];
-        } else if (text.includes('tiktok.com')) {
-            url = text.trim();
-        }
-
-        if (!url) return await reply("⚠️ Could not find a valid TikTok link.");
-
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const api = `https://jawad-tech.vercel.app/download/ttdl?url=${encodeURIComponent(url)}`;
-        const res = await axios.get(api);
-        const json = res.data;
-
-        if (!json?.status || !json?.result) return await reply("❌ Download failed! Try again later.");
-
-        const meta = json.metadata;
-
-        const caption = `
-🎬 *${meta.title}*
-
-👤 *Author:* ${meta.author.nickname} (${meta.author.username})
-🎵 *Music:* ${meta.music.title}
-💿 *By:* ${meta.music.author}
-
-📊 *Stats:*
-   • Views: ${meta.stats.views}
-   • Likes: ${meta.stats.likes}
-   • Shares: ${meta.stats.shares}
-   • Comments: ${meta.stats.comments}
-   • Downloads: ${meta.stats.downloads}
-
-🌍 *Region:* ${meta.region}
-🕒 *Duration:* ${meta.duration}s
-📅 *Published:* ${meta.published}
-
-> ${DESCRIPTION}
-        `.trim();
-
-        await conn.sendMessage(from, {
-            video: { url: json.result },
-            mimetype: 'video/mp4',
-            caption
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("Error in .tiktok3:", e);
-        await reply("❌ Error occurred while downloading TikTok video!");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
-
-
-// ==================== INSTAGRAM COMMANDS ====================
-
-cmd({
-    pattern: "igdl",
-    alias: ["instagram", "insta", "ig"],
-    react: "⬇️",
-    desc: "Download Instagram videos/reels with auto-failover",
-    category: "download",
-    use: ".igdl <Instagram URL>",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply, userConfig }) => {
-    try {
-        if (!text) return reply("❌ Please provide a valid Instagram link!\n\nExample:\n.igdl https://instagram.com/reel/...");
-
-        // 1. Extract URL from text inline
-        let url = null;
-        // Matches standard instagram.com links (posts, reels, tv)
-        const match = text.match(/(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/[\w-]+)/);
-        if (match) {
-            url = match[0];
-        } else if (text.includes('instagram.com')) {
-            url = text.trim();
-        }
-
-        if (!url) return reply("⚠️ Could not find a valid Instagram link in your message.");
-
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        let sendSuccess = false;
-
-        // --- ATTEMPT 1: API 1 (Aswin Sparky) ---
-        try {
-            const apiUrl1 = `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(url)}`;
-            const response1 = await axios.get(apiUrl1);
-
-            if (!response1.data?.status || !response1.data.data?.length) {
-                throw new Error("API 1 returned no data");
-            }
-
-            const mediaList = response1.data.data;
-            
-            // Try sending all media items from API 1
-            for (const item of mediaList) {
-                await conn.sendMessage(from, {
-                    [item.type === 'video' ? 'video' : 'image']: { url: item.url },
-                    caption: `📶 *Instagram Downloader*\n\n- ❤‍🩹 *Quality*: HD\n\n> ${DESCRIPTION}`
-                }, { quoted: mek });
-            }
-            
-            sendSuccess = true; // If loop finishes without error, success!
-
-        } catch (e) {
-            console.log("Attempt 1 (API 1) failed or Send failed. Switching to API 2...");
-            // Do not return, proceed to Attempt 2
-        }
-
-        // --- ATTEMPT 2: API 2 (Jawad Tech) ---
-        if (!sendSuccess) {
-            try {
-                const apiUrl2 = `https://jawad-tech.vercel.app/igdl?url=${encodeURIComponent(url)}`;
-                const response2 = await axios.get(apiUrl2);
-
-                if (!response2.data?.status || !response2.data.result?.length) {
-                    throw new Error("API 2 returned no data");
+        const API_SOURCES = [
+            {
+                url: `${getRandomBase()}/igdl?url=${encodeURIComponent(finalUrl)}&key=${Pubg}`,
+                parse: (data) => {
+                    if (data.status && data.result) {
+                        const results = Array.isArray(data.result) ? data.result : [data.result];
+                        return results.map(r => ({ type: 'video', url: r }));
+                    }
+                    return null;
                 }
+            },
+            {
+                url: `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(finalUrl)}`,
+                parse: (data) => {
+                    if (data.status && data.data?.length) {
+                        return data.data.map(item => ({
+                            type: item.type === 'video' ? 'video' : 'image',
+                            url: item.url
+                        }));
+                    }
+                    return null;
+                }
+            },
+            {
+                url: `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(finalUrl)}`,
+                parse: (data) => {
+                    if (data.status && data.result && Array.isArray(data.result)) {
+                        return [{ type: 'video', url: data.result[0] }];
+                    }
+                    return null;
+                }
+            }
+        ];
 
-                const mediaData = response2.data.result;
+        let success = false;
+        let lastError = null;
 
-                for (const item of mediaData) {
-                    const isVideo = item.contentType?.includes('video') || item.format === 'mp4';
-                    
-                    if (isVideo) {
+        for (const api of API_SOURCES) {
+            if (success) break;
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const response = await axios.get(api.url, { timeout: 10000 });
+                    const mediaList = api.parse(response.data);
+                    if (!mediaList || mediaList.length === 0) {
+                        lastError = new Error('Invalid data');
+                        break;
+                    }
+                    for (const item of mediaList) {
+                        const mediaKey = item.type === 'video' ? 'video' : 'image';
                         await conn.sendMessage(from, {
-                            video: { url: item.url },
-                            caption: `📱 *Instagram Downloader*\n\n📹 *Type*: Video\n💾 *Size*: ${(item.size / 1024 / 1024).toFixed(2)} MB\n\n> ${DESCRIPTION}`
-                        }, { quoted: mek });
-                    } else {
-                        await conn.sendMessage(from, {
-                            image: { url: item.url },
-                            caption: `📱 *Instagram Downloader*\n\n🖼️ *Type*: Image\n💾 *Size*: ${(item.size / 1024).toFixed(2)} KB\n\n> ${DESCRIPTION}`
+                            [mediaKey]: { url: item.url },
+                            caption: `📶 *Instagram Downloader*\n\n- ❤‍🩹 *Quality*: HD\n\n> ${DESCRIPTION}`
                         }, { quoted: mek });
                     }
-                    // Small delay to prevent spamming
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    success = true;
+                    break;
+                } catch (err) {
+                    lastError = err;
+                    const statusCode = err.response?.status;
+                    if ((statusCode === 505 || statusCode === 500 || err.code === 'ECONNABORTED') && attempt === 1) {
+                        await new Promise(r => setTimeout(r, 2000));
+                        continue;
+                    }
+                    break;
                 }
-
-                sendSuccess = true;
-
-            } catch (e) {
-                console.error("Attempt 2 (API 2) also failed:", e);
             }
         }
 
-        // --- FINAL CHECK ---
-        if (!sendSuccess) {
-            return await reply("❌ Both APIs failed to fetch or send the media. The account might be private or the link is invalid.");
-        }
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error('IGDL Critical Error:', e);
-        await reply("❌ An unexpected error occurred.");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
-
-cmd({
-    pattern: "igdl2",
-    alias: ["instagram2", "ig2", "instadl2"],
-    react: '📥',
-    desc: "Download videos from Instagram (API v5)",
-    category: "download",
-    use: ".igdl2 <Instagram video URL>",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply, userConfig }) => {
-    try {
-        if (!text) return reply('❌ Please provide a valid Instagram video URL.\n\nExample:\n.igdl2 https://instagram.com/reel/...');
-
-        // Extract URL inline
-        let url = null;
-        const match = text.match(/(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/[\w-]+)/);
-        if (match) {
-            url = match[0];
-        } else if (text.includes('instagram.com')) {
-            url = text.trim();
-        }
-
-        if (!url) return reply("⚠️ Could not find a valid Instagram link.");
-
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(url)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-
-        if (!data.status || !data.result || !Array.isArray(data.result)) {
-            return reply('❌ Unable to fetch the video. Please check the URL and try again.');
-        }
-
-        const videoUrl = data.result[0];
-        if (!videoUrl) return reply("❌ No video found in the response.");
-
-        const metadata = data.metadata || {};
-        const author = metadata.author || "Unknown";
-        const caption = metadata.caption ? metadata.caption.slice(0, 300) + "..." : "No caption provided.";
-        const likes = metadata.like || 0;
-        const comments = metadata.comment || 0;
-
-        await conn.sendMessage(from, {
-            video: { url: videoUrl },
-            caption: `📥 *Instagram Reel Downloader*\n👤 *Author:* ${author}\n💬 *Caption:* ${caption}\n❤️ *Likes:* ${likes} | 💭 *Comments:* ${comments}\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-    } catch (error) {
-        console.error('IGDL2 Error:', error);
-        reply('❌ Failed to download the Instagram video. Please try again later.');
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
-
-cmd({
-    pattern: "igdl3",
-    alias: ["instagram3", "insta3", "ig3"],
-    react: "⬇️",
-    desc: "Download Instagram posts, reels, and stories",
-    category: "download",
-    use: ".igdl3 <Instagram URL>",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply, userConfig }) => {
-    try {
-        if (!text) return reply("❌ Please provide a valid Instagram link");
-
-        // Extract URL inline
-        let url = null;
-        const match = text.match(/(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/[\w-]+)/);
-        if (match) {
-            url = match[0];
-        } else if (text.includes('instagram.com')) {
-            url = text.trim();
-        }
-
-        if (!url) return reply("⚠️ Could not find a valid Instagram link.");
-
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const apiUrl = `https://jawad-tech.vercel.app/igdl?url=${encodeURIComponent(url)}`;
-        const response = await axios.get(apiUrl);
-
-        if (!response.data?.status || !response.data.result?.length) {
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return reply("❌ Failed to fetch media. Invalid link or private content.");
-        }
-
-        const mediaData = response.data.result;
-
-        for (const item of mediaData) {
-            const isVideo = item.contentType?.includes('video') || item.format === 'mp4';
-            
-            if (isVideo) {
-                await conn.sendMessage(from, {
-                    video: { url: item.url },
-                    caption: `📱 *Instagram Downloader*\n\n📹 *Type*: Video\n💾 *Size*: ${(item.size / 1024 / 1024).toFixed(2)} MB\n🎞️ *Format*: ${item.format}\n\n> ${DESCRIPTION}`
-                }, { quoted: mek });
-            } else {
-                await conn.sendMessage(from, {
-                    image: { url: item.url },
-                    caption: `📱 *Instagram Downloader*\n\n🖼️ *Type*: Image\n💾 *Size*: ${(item.size / 1024).toFixed(2)} KB\n🎨 *Format*: ${item.format}\n\n> ${DESCRIPTION}`
-                }, { quoted: mek });
-            }
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error('IGDL3 Error:', error);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply("❌ Download failed. Please check the link and try again.");
-    }
-});
-
-
-cmd({
-    pattern: "img",
-    alias: ["image", "pinterest", "searchimg"],
-    react: "🦋",
-    desc: "Search images from Pinterest",
-    category: "fun",
-    use: ".img <keywords>",
-    filename: __filename
-}, async (conn, mek, m, { reply, args, from }) => {
-    try {
-        const query = args.join(" ");
-        if (!query) {
-            return reply("🖼️ Please provide a search query\nExample: .img Imran Khan");
-        }
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-
-        const url = `https://api.nexray.eu.cc/search/pinterest?q=${encodeURIComponent(query)}`;
-        const response = await axios.get(url);
-
-        if (!response.data?.status || !response.data.result?.length) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return reply("❌ No images found. Try different keywords");
-        }
-
-        const results = response.data.result;
-        const selectedImages = results
-            .sort(() => 0.5 - Math.random())
-            .slice(0, 5);
-
-        for (const imageUrl of selectedImages) {
-            if (imageUrl.images_url) {
-                await conn.sendMessage(
-                    from,
-                    { 
-                        image: { url: imageUrl.images_url },
-                        caption: `📷 Result for: ${query}\n> © Powered by JawadTechX`
-                    },
-                    { quoted: mek }
-                );
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        }
-
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
-
-    } catch (error) {
-        console.error('Pinterest Search Error:', error);
-        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-        reply(`❌ Error: ${error.message || "Failed to fetch images"}`);
-    }
-});
-
-
-// ============================================
-// COMMAND: twitter (Twitter/X Video Downloader)
-// ============================================
-cmd({
-    pattern: "twitter",
-    alias: ["tw"],
-    desc: "Download Twitter/X videos",
-    category: "download",
-    react: "🐦",
-    filename: __filename
-}, async (conn, mek, m, { from, text, reply }) => {
-    try {
-        if (!text) return reply("🐦 Please provide a Twitter/X URL!\n\nExample: `.twitter https://x.com/username/status/123456789`");
-
-        // Validate URL
-        if (!text.includes("twitter.com") && !text.includes("x.com")) {
-            return reply("❌ Please provide a valid Twitter/X URL!");
-        }
-
-        // Send processing message
-        await conn.sendMessage(from, {
-            react: { text: '⏳', key: m.key }
-        });
-
-        // Clean URL and encode
-        const cleanUrl = text.trim();
-        const encodedUrl = encodeURIComponent(cleanUrl);
-        const apiUrl = `https://api.deline.web.id/downloader/twitter?url=${encodedUrl}`;
-
-        // Fetch from API
-        const response = await axios.get(apiUrl, { 
-            timeout: 30000,
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        });
-
-        if (!response.data?.status) {
-            return reply("❌ Failed to fetch video! Please check the URL and try again.");
-        }
-
-        const data = response.data.data;
-        
-        if (!data.downloadLink) {
-            return reply("❌ No video found for this tweet!");
-        }
-
-        // Send video info
-        const caption = `╭┈───〔 Twitter Downloader 〕┈───⊷
-├▢ 🐦 Title: ${data.videoTitle || 'Twitter Video'}
-├▢ 📝 Description: ${data.videoDescription || 'N/A'}
-├▢ 📥 Status: Downloading...
-╰───────────────────⊷
-
-> Powered by KHAN-MD`;
-
-        await conn.sendMessage(from, {
-            image: { url: data.imgUrl },
-            caption: caption
-        }, { quoted: mek });
-
-        // Send the video
-        await conn.sendMessage(from, {
-            video: { url: data.downloadLink },
-            caption: `🐦 *${data.videoTitle || 'Twitter Video'}*\n\n> Powered by KHAN-MD`,
-            mimetype: "video/mp4"
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error("❌ TWITTER ERROR:", error);
-        
-        if (error.code === 'ECONNABORTED') {
-            reply("⏰ Request timeout! Please try again later.");
-        } else if (error.response?.status === 404) {
-            reply("❌ Video not found! Please check the URL.");
+        if (success) {
+            await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
         } else {
-            reply(`❌ Error occurred: ${error.message}`);
-        }
-        
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
-});
-
-
-cmd({
-    pattern: "gdrive",
-    alias: ["googledrive", "gdl"],
-    desc: "Download files from Google Drive",
-    category: "download",
-    react: "📁",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply, userConfig }) => {
-    try {
-        if (!q) {
-            return reply(`📁 *Google Drive Downloader* 📁\n\nDownload files from Google Drive using share link!\n\n*Usage:* .gdrive <google_drive_link>\n*Example:* .gdrive https://drive.google.com/file/d/xxxxx/view`);
-        }
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
-
-        // Extract file ID from Google Drive URL
-        let fileId = null;
-        const patterns = [
-            /\/file\/d\/([^\/]+)/,
-            /id=([^&]+)/,
-            /\/d\/([^\/]+)/,
-            /\/uc\?id=([^&]+)/
-        ];
-        
-        for (const pattern of patterns) {
-            const match = q.match(pattern);
-            if (match) {
-                fileId = match[1];
-                break;
-            }
-        }
-
-        if (!fileId) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return reply("❌ Invalid Google Drive link. Please provide a valid share link.");
-        }
-
-        const apiUrl = `https://api.deline.web.id/downloader/gdrive?url=https://drive.google.com/file/d/${fileId}/view`;
-        const response = await axios.get(apiUrl);
-
-        if (!response.data.status || !response.data.result) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return reply("❌ Failed to fetch file from Google Drive. Please try again.");
-        }
-
-        const result = response.data.result;
-        const downloadUrl = result.downloadUrl;
-        const fileName = result.fileName;
-        const fileSize = result.fileSize;
-        const mimetype = result.mimetype;
-
-        if (!downloadUrl) {
-            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-            return reply("❌ Failed to get download URL. Please try again.");
-        }
-
-        // Download the file
-        const fileResponse = await axios({
-            method: 'GET',
-            url: downloadUrl,
-            responseType: 'arraybuffer'
-        });
-
-        const fileBuffer = Buffer.from(fileResponse.data);
-
-        // Send the file
-        await conn.sendMessage(from, {
-            document: fileBuffer,
-            fileName: fileName,
-            mimetype: mimetype || 'application/octet-stream',
-            caption: `📁 *${fileName}*\n📦 *Size:* ${fileSize}\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
-
-    } catch (error) {
-        console.error("Google Drive Error:", error);
-        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
-        reply("❌ An error occurred while downloading the file. Please try again.");
-    }
-});
-
-// ==================== CAPCUT COMMAND ====================
-cmd({
-    pattern: "capcut",
-    desc: "Download CapCut templates",
-    category: "download",
-    react: "🎬",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply, userConfig }) => {
-    try {
-        if (!q) return await reply("🎬 *Please provide a CapCut template link*");
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await reply("*⏳ Fetching CapCut template, please wait...*");
-
-        const apiUrl = `https://api.deline.web.id/downloader/capcut?url=${encodeURIComponent(q)}`;
-        const { data } = await axios.get(apiUrl);
-
-        if (!data.status || data.result.error) return await reply("❌ Failed to fetch CapCut template.");
-
-        const result = data.result;
-        const media = result.medias.find(v => v.quality === "No Watermark") || result.medias[0];
-
-        const caption = `🎬 *CapCut Template Downloaded*
-
-📌 *Title:* ${result.title}
-👤 *Author:* ${result.author}
-⏱ *Duration:* ${Math.floor(result.duration / 1000)}s
-🎞 *Quality:* ${media.quality}
-
-> ${DESCRIPTION}`;
-
-        await conn.sendMessage(from, { video: { url: media.url }, caption }, { quoted: mek });
-
-    } catch (err) {
-        console.error("CAPCUT ERROR:", err);
-        await reply("❌ Error downloading CapCut template. Try again later.");
-    }
-});
-
-// ==================== APK COMMAND ====================
-cmd({
-    pattern: "apk",
-    alias: ["app", "dlapk"],
-    react: "🚀",
-    desc: "📥 Download APK directly from Aptoide",
-    category: "download",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply, userConfig }) => {
-    try {
-        if (!q) return reply("❌ *Please provide an app name!*");
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const apiUrl = `http://ws75.aptoide.com/api/7/apps/search/query=${encodeURIComponent(q)}/limit=1`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-
-        if (!data || !data.datalist || !data.datalist.list || data.datalist.list.length === 0) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return reply("❌ *App not found. Please try another name.*");
+            return reply(`❌ *Download Failed!*\n\nPlease check the link or try again later.`);
         }
-
-        const app = data.datalist.list[0];
-        const sizeInMB = (app.size / (1024 * 1024)).toFixed(2);
-        
-        if (app.size > 150 * 1024 * 1024) {
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return reply("❌ *App size is too large to download (max 150MB)*");
-        }
-        
-        const caption = `✅ *APK Downloaded Successfully*\n\n📱 *App:* ${app.name}\n📦 *Size:* ${sizeInMB} MB\n\n> ${DESCRIPTION}`;
-
-        await conn.sendMessage(from, {
-            document: { url: app.file.path_alt },
-            mimetype: "application/vnd.android.package-archive",
-            fileName: `${app.name}.apk`,
-            caption: caption
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
     } catch (error) {
-        console.error("APK Download Error:", error);
+        console.error('Instagram Error:', error);
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply("❌ *An error occurred while fetching the APK. Please try again later.*");
+        reply("❌ Download failed. Try again later.");
     }
-});
+}
 
-// ==================== FACEBOOK COMMAND ====================
+// ==========================================
+// INSTAGRAM COMMANDS
+// ==========================================
 cmd({
-    pattern: "fb",
-    alias: ["facebook", "fbdl"],
-    react: '📥',
-    desc: "Download videos from Facebook (API v4)",
+    pattern: "ig",
+    alias: ["igdl"],
+    react: "⬇️",
+    desc: "Download Instagram videos/reels",
     category: "download",
-    use: ".fb <Facebook video URL>",
+    use: ".ig <link or text with link>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, args, userConfig }) => {
-    try {
-        const fbUrl = args[0];
-        if (!fbUrl || !fbUrl.includes("facebook.com")) {
-            return reply('❌ Please provide a valid Facebook video URL.\n\nExample:\n.fb https://facebook.com/...');
-        }
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-
-        if (!data.status || !data.result || !Array.isArray(data.result)) {
-            return reply('❌ Unable to fetch the video. Please check the URL and try again.');
-        }
-
-        const hd = data.result.find(v => v.quality === "HD");
-        const sd = data.result.find(v => v.quality === "SD");
-        const video = hd || sd;
-
-        if (!video) return reply("❌ Video not found in the response.");
-
-        await reply(`Downloading video Please wait`);
-
-        await conn.sendMessage(from, {
-            video: { url: video.url },
-            caption: `🎥 *Facebook Video Downloader*\n\n> Quality: ${video.quality}\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-    } catch (error) {
-        console.error('FB Error:', error);
-        reply('❌ Failed to download the video. Please try again later.');
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
+}, async (conn, mek, m, ctx) => {
+    return downloadInstagram(conn, mek, m, ctx);
 });
 
-
-// ==================== MEDIAFIRE COMMAND ====================
 cmd({
-    pattern: "mediafire",
-    alias: ["mfire", "mfdownload"],
-    react: '📥',
-    desc: "Download any file from MediaFire (supports .mp4, .apk, .zip, .js, documents, etc.)",
+    pattern: "instagram",
+    alias: ["insta"],
+    react: "⬇️",
+    desc: "Download Instagram videos/reels",
     category: "download",
-    use: ".mediafire <MediaFire URL>",
+    use: ".instagram <link or text with link>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, args, userConfig }) => {
-    try {
-        const url = args.join(" ");
-        if (!url || !url.includes("mediafire.com")) {
-            return reply("❌ Please provide a valid MediaFire URL\nExample: .mediafire https://www.mediafire.com/file/...");
-        }
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const apiUrl = `https://api.deline.web.id/downloader/mediafire?url=${encodeURIComponent(url)}`;
-        const { data } = await axios.get(apiUrl);
-
-        if (!data || !data.status || !data.result || !data.result.downloadUrl || !data.result.fileName) {
-            return reply("❌ Failed to fetch file info. Invalid URL or API error.");
-        }
-
-        const fileName = data.result.fileName;
-        const downloadUrl = data.result.downloadUrl;
-
-        const fileResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
-        const fileBuffer = Buffer.from(fileResponse.data);
-
-        const ext = fileName.split('.').pop().toLowerCase();
-        let mimetype = 'application/octet-stream';
-        if (ext === 'mp4') mimetype = 'video/mp4';
-        else if (ext === 'apk') mimetype = 'application/vnd.android.package-archive';
-        else if (ext === 'zip') mimetype = 'application/zip';
-        else if (ext === 'js') mimetype = 'text/javascript';
-
-        await conn.sendMessage(from, {
-            document: fileBuffer,
-            fileName: fileName,
-            mimetype: mimetype,
-            caption: `*MediaFire Download*\n\n📄 *File:* ${fileName}\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-        
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error("MediaFire Error:", error);
-        reply("❌ Failed to download file. Please check the URL or try again later.");
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-    }
+}, async (conn, mek, m, ctx) => {
+    return downloadInstagram(conn, mek, m, ctx);
 });
 
-// ==================== NPM DOWNLOAD COMMAND ====================
-cmd({
-    pattern: "dlnpm",
-    desc: "Download npm package as tgz (supports scoped packages)",
-    category: "download",
-    react: "📦",
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply, userConfig }) => {
-    try {
-        if (!q) return reply("❌ *Please provide a package name*");
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        const pkg = q.trim();
-        const encodedPkg = encodeURIComponent(pkg);
-        const tempDir = path.join(__dirname, '../temp');
-        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
-
-        const infoUrl = `https://registry.npmjs.org/${encodedPkg}`;
-        const infoRes = await axios.get(infoUrl).catch(() => null);
-
-        if (!infoRes || !infoRes.data) {
-            return reply("❌ Package not found in NPM registry");
-        }
-
-        const data = infoRes.data;
-        const latest = data['dist-tags'].latest;
-        const tarballUrl = data.versions[latest].dist.tarball;
-
-        const safeName = pkg.replace('@', '').replace('/', '-');
-        const fileName = `${safeName}-${latest}.tgz`;
-        const filePath = path.join(tempDir, fileName);
-
-        const tarballRes = await axios.get(tarballUrl, { responseType: 'arraybuffer' });
-        fs.writeFileSync(filePath, tarballRes.data);
-
-        await conn.sendMessage(from, {
-            document: fs.readFileSync(filePath),
-            mimetype: 'application/gzip',
-            fileName: fileName,
-            caption: `📦 *NPM Package Downloaded*\n\n• *Name:* ${pkg}\n• *Version:* ${latest}\n• *Format:* .tgz\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        fs.unlinkSync(filePath);
-
-    } catch (err) {
-        console.error("DLNPM Error:", err);
-        reply("❌ NPM package download failed");
-    }
-});
-
-// ==================== MEGA DOWNLOAD COMMAND ====================
-cmd({
-    pattern: "megadl",
-    alias: ["mega", "meganz"],
-    react: "📦",
-    desc: "Download ZIP or any file from Mega.nz",
-    category: "download",
-    use: '.megadl <mega file link>',
-    filename: __filename
-}, async (conn, mek, m, { from, q, reply, userConfig }) => {
-    try {
-        if (!q) return reply("📦 Please provide a Mega.nz file link.\n\nExample: `.megadl https://mega.nz/file/xxxx#key`");
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const file = File.fromURL(q);
-        const data = await new Promise((resolve, reject) => {
-            file.download((err, data) => {
-                if (err) reject(err);
-                else resolve(data);
-            });
-        });
-
-        const savePath = path.join(os.tmpdir(), file.name || "mega_file.zip");
-        fs.writeFileSync(savePath, data);
-
-        await conn.sendMessage(from, {
-            document: fs.readFileSync(savePath),
-            fileName: file.name || "JawadTechX.zip",
-            mimetype: "application/zip",
-            caption: `📦 Downloaded from Mega NZ\n\n> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        fs.unlinkSync(savePath);
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error("❌ MEGA Downloader Error:", error);
-        reply("❌ Failed to download file from Mega.nz. Make sure the link is valid and file is accessible.");
-    }
-});
-
-// ==================== TIKTOK MP3 COMMAND ====================
-cmd({
-    pattern: "ttmp3",
-    alias: ["tiktokmp3", "tiktokaudio", "ttaudio"],
-    react: "🎵",
-    desc: "Extract audio from TikTok video",
-    category: "download",
-    use: ".ttmp3 <TikTok URL>",
-    filename: __filename
-}, async (conn, mek, m, { from, reply, q, userConfig }) => {
-    try {
-        const url = q || m.quoted?.text;
-        if (!url || !url.includes("tiktok.com")) return reply("❌ Please provide/reply to a TikTok link");
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        const apiUrl = `https://api.deline.web.id/downloader/tiktok?url=${encodeURIComponent(url)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
-        
-        if (!data.status || !data.result) {
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return reply("Failed to fetch TikTok video.");
-        }
-
-        const videoUrl = data.result.download;
-        
-        await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
-        const videoResponse = await axios.get(videoUrl, { responseType: 'arraybuffer' });
-        const videoBuffer = Buffer.from(videoResponse.data);
-        
-        await conn.sendMessage(from, { react: { text: '🔧', key: m.key } });
-        const audioBuffer = await converter.toAudio(videoBuffer, 'mp4');
-        
-        await conn.sendMessage(from, {
-            audio: audioBuffer,
-            mimetype: 'audio/mpeg',
-            ptt: false,
-            caption: `> ${DESCRIPTION}`
-        }, { quoted: mek });
-
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (error) {
-        console.error('TTMP3 Error:', error);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-        reply("❌ Audio extraction failed. Error: " + error.message);
-    }
-});
-
-// ==================== INSTAGRAM MP3 COMMAND ====================
+// ==========================================
+// INSTAGRAM MP3
+// ==========================================
 cmd({
     pattern: "igmp3",
     alias: ["instamp3", "instaaudio", "igaudio"],
@@ -1051,33 +187,45 @@ cmd({
     category: "download",
     use: ".igmp3 <Instagram URL>",
     filename: __filename
-}, async (conn, mek, m, { from, reply, q, userConfig }) => {
+}, async (conn, mek, m, { from, reply, q, text, userConfig }) => {
     try {
-        const url = q || m.quoted?.text;
-        if (!url || !url.includes("instagram.com")) return reply("❌ Please provide/reply to an Instagram link");
+        let finalUrl = q || text || m.quoted?.text;
+        const urlMatch = finalUrl?.match(/https?:\/\/(?:www\.)?instagram\.com\/[^\s]+/i);
+        if (urlMatch) finalUrl = urlMatch[0];
 
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
+        if (!finalUrl || !finalUrl.includes("instagram.com")) return reply("❌ Please provide/reply to an Instagram link");
+
         const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
-        const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(url)}`;
-        const response = await axios.get(apiUrl);
-        const data = response.data;
+        const API_SOURCES = [
+            `${getRandomBase()}/igdl?url=${encodeURIComponent(finalUrl)}&key=${Pubg}`,
+            `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(finalUrl)}`,
+            `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(finalUrl)}`
+        ];
 
-        if (!data?.status || !data.data?.length) {
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return reply("Failed to fetch media.");
+        let videoUrl = null;
+        for (const apiUrl of API_SOURCES) {
+            try {
+                const res = await axios.get(apiUrl, { timeout: 10000 });
+                if (apiUrl.includes('aswin')) {
+                    const item = res.data?.data?.find(v => v.type === 'video');
+                    if (item?.url) { videoUrl = item.url; break; }
+                } else if (res.data?.result) {
+                    const result = Array.isArray(res.data.result) ? res.data.result[0] : res.data.result;
+                    if (typeof result === 'string') { videoUrl = result; break; }
+                    if (result?.url) { videoUrl = result.url; break; }
+                }
+            } catch (e) { continue; }
         }
 
-        const videoItem = data.data.find(item => item.type === 'video');
-        if (!videoItem) {
+        if (!videoUrl) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return reply("No video found.");
+            return reply("❌ Could not find video to extract audio from.");
         }
 
         await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
-        const videoResponse = await axios.get(videoItem.url, { responseType: 'arraybuffer' });
+        const videoResponse = await axios.get(videoUrl, { responseType: 'arraybuffer', timeout: 30000 });
         const videoBuffer = Buffer.from(videoResponse.data);
         
         await conn.sendMessage(from, { react: { text: '🔧', key: m.key } });
@@ -1099,8 +247,687 @@ cmd({
     }
 });
 
+// ==========================================
+// TIKTOK COMMANDS
+// ==========================================
+cmd({
+    pattern: "tiktok",
+    alias: ["tt", "ttdl"],
+    desc: "Download TikTok video using multiple APIs",
+    category: "download",
+    react: "🎵",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, text, userConfig }) => {
+    try {
+        let finalUrl = q || text || m.quoted?.text;
+        const urlMatch = finalUrl?.match(/https?:\/\/(?:www\.)?(?:tiktok\.com|vt\.tiktok\.com)\/[^\s]+/i);
+        if (urlMatch) finalUrl = urlMatch[0];
+        
+        if (!finalUrl || !finalUrl.includes("tiktok.com")) return await reply("🎯 Please provide a valid TikTok link!");
 
-// ==================== YOUTUBE POST COMMAND ====================
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const API_SOURCES = [
+            `${getRandomBase()}/tiktok?url=${encodeURIComponent(finalUrl)}&key=${API_KEY}`,
+            `${getRandomBase()}/ttdl?url=${encodeURIComponent(finalUrl)}&key=${API_KEY}`
+        ];
+
+        let success = false;
+        for (const api of API_SOURCES) {
+            try {
+                const res = await axios.get(api, { timeout: 10000 });
+                const data = res.data;
+                if (data?.status && data?.result) {
+                    await conn.sendMessage(from, {
+                        video: { url: data.result },
+                        mimetype: 'video/mp4',
+                        caption: `🎵 ${data.metadata?.title || 'TikTok Video'}\n👤 *Author:* ${data.metadata?.author || 'Unknown'}\n\n> ${DESCRIPTION}`
+                    }, { quoted: mek });
+                    success = true;
+                    break;
+                }
+            } catch (e) { continue; }
+        }
+
+        if (success) await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+        else return await reply("❌ All APIs failed! Try again later.");
+
+    } catch (e) {
+        console.error("Error in .tiktok:", e);
+        await reply("❌ Error occurred while downloading TikTok video!");
+    }
+});
+
+cmd({
+    pattern: "tiktok2",
+    alias: ["tt2", "ttdl2"],
+    desc: "Download TikTok video",
+    category: "download",
+    react: "🎬",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, text, userConfig }) => {
+    try {
+        let finalUrl = q || text || m.quoted?.text;
+        const urlMatch = finalUrl?.match(/https?:\/\/(?:www\.)?(?:tiktok\.com|vt\.tiktok\.com)\/[^\s]+/i);
+        if (urlMatch) finalUrl = urlMatch[0];
+
+        if (!finalUrl || !finalUrl.includes("tiktok.com")) return await reply("🎯 Please provide a valid TikTok link!");
+
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const res = await axios.get(`${getRandomBase()}/tiktok?url=${encodeURIComponent(finalUrl)}&key=${API_KEY}`, { timeout: 10000 });
+        const json = res.data;
+
+        if (!json?.status || !json?.result) return await reply("❌ Download failed! Try again later.");
+
+        await conn.sendMessage(from, {
+            video: { url: json.result },
+            mimetype: 'video/mp4',
+            caption: `🎵 *${json.metadata?.title || 'TikTok'}*\n👤 *Author:* ${json.metadata?.author || 'Unknown'}\n\n> ${DESCRIPTION}`
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("Error in .tiktok2:", e);
+        await reply("❌ Error occurred while downloading TikTok video!");
+    }
+});
+
+cmd({
+    pattern: "tiktok3",
+    alias: ["tt3", "ttdl3"],
+    desc: "Download HD TikTok videos",
+    category: "download",
+    react: "🎬",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, text, userConfig }) => {
+    try {
+        let finalUrl = q || text || m.quoted?.text;
+        const urlMatch = finalUrl?.match(/https?:\/\/(?:www\.)?(?:tiktok\.com|vt\.tiktok\.com)\/[^\s]+/i);
+        if (urlMatch) finalUrl = urlMatch[0];
+
+        if (!finalUrl || !finalUrl.includes("tiktok.com")) return await reply("🎯 Please provide a valid TikTok link!");
+
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const res = await axios.get(`${getRandomBase()}/ttdl?url=${encodeURIComponent(finalUrl)}&key=${API_KEY}`, { timeout: 10000 });
+        const json = res.data;
+
+        if (!json?.status || !json?.result) return await reply("❌ Download failed! Try again later.");
+
+        const meta = json.metadata;
+        const caption = `🎬 *${meta.title}*\n\n👤 *Author:* ${meta.author?.nickname || 'Unknown'} (@${meta.author?.username || 'unknown'})\n📊 *Stats:* 👀 ${meta.stats?.views || 0} | ❤️ ${meta.stats?.likes || 0}\n\n> ${DESCRIPTION}`;
+
+        await conn.sendMessage(from, {
+            video: { url: json.result },
+            mimetype: 'video/mp4',
+            caption
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (e) {
+        console.error("Error in .tiktok3:", e);
+        await reply("❌ Error occurred while downloading TikTok video!");
+    }
+});
+
+// ==========================================
+// TIKTOK MP3
+// ==========================================
+cmd({
+    pattern: "ttmp3",
+    alias: ["tiktokmp3", "tiktokaudio", "ttaudio"],
+    react: "🎵",
+    desc: "Extract audio from TikTok video",
+    category: "download",
+    use: ".ttmp3 <TikTok URL>",
+    filename: __filename
+}, async (conn, mek, m, { from, reply, q, text, userConfig }) => {
+    try {
+        let finalUrl = q || text || m.quoted?.text;
+        const urlMatch = finalUrl?.match(/https?:\/\/(?:www\.)?(?:tiktok\.com|vt\.tiktok\.com)\/[^\s]+/i);
+        if (urlMatch) finalUrl = urlMatch[0];
+
+        if (!finalUrl || !finalUrl.includes("tiktok.com")) return reply("❌ Please provide/reply to a TikTok link");
+
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const API_SOURCES = [
+            `${getRandomBase()}/tiktok?url=${encodeURIComponent(finalUrl)}&key=${API_KEY}`,
+            `${getRandomBase()}/ttdl?url=${encodeURIComponent(finalUrl)}&key=${API_KEY}`,
+            `https://api.deline.web.id/downloader/tiktok?url=${encodeURIComponent(finalUrl)}`
+        ];
+
+        let videoUrl = null;
+        for (const apiUrl of API_SOURCES) {
+            try {
+                const res = await axios.get(apiUrl, { timeout: 10000 });
+                if (res.data?.status && res.data?.result) {
+                    if (typeof res.data.result === 'string') { videoUrl = res.data.result; break; }
+                    if (res.data.result?.download) { videoUrl = res.data.result.download; break; }
+                }
+            } catch (e) { continue; }
+        }
+
+        if (!videoUrl) {
+            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+            return reply("Failed to fetch TikTok video.");
+        }
+
+        await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
+        const videoResponse = await axios.get(videoUrl, { responseType: 'arraybuffer', timeout: 30000 });
+        const videoBuffer = Buffer.from(videoResponse.data);
+        
+        await conn.sendMessage(from, { react: { text: '🔧', key: m.key } });
+        const audioBuffer = await converter.toAudio(videoBuffer, 'mp4');
+        
+        await conn.sendMessage(from, {
+            audio: audioBuffer,
+            mimetype: 'audio/mpeg',
+            ptt: false,
+            caption: `> ${DESCRIPTION}`
+        }, { quoted: mek });
+
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error('TTMP3 Error:', error);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        reply("❌ Audio extraction failed. Error: " + error.message);
+    }
+});
+
+// ==================== PINTEREST DOWNLOADER ====================
+cmd({
+    pattern: "pinterest",
+    alias: ["pin", "pindl", "pint"],
+    react: "📌",
+    desc: "Download Pinterest videos and images",
+    category: "downloader",
+    use: ".pinterest <pinterest_url>",
+    filename: __filename
+}, async (conn, mek, m, { from, args, reply }) => {
+    try {
+        if (!args[0]) {
+            return reply(`📌 *${toStylistUpper('Please provide a Pinterest URL!')}*\n\n📌 *${toStylistUpper('Example')}:* .pinterest https://pin.it/xxxxx`);
+        }
+
+        const url = args[0];
+        if (!url.includes('pinterest.com') && !url.includes('pin.it')) {
+            return reply(`❌ *${toStylistUpper('Invalid Pinterest URL!')}*\n*${toStylistUpper('Example')}:* https://pin.it/xxxxx`);
+        }
+
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const apiUrl = `${getRandomBase()}/pindl?url=${encodeURIComponent(url)}&key=${API_KEY}`;
+        const response = await axios.get(apiUrl, { timeout: 30000 });
+        const data = response.data;
+
+        if (!data.status || !data.result) {
+            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+            return reply(`❌ *${data.error || toStylistUpper('Failed to fetch Pinterest data')}*`);
+        }
+
+        const mediaUrl = data.result;
+        const type = data.type || 'video'; 
+        const title = data.metadata?.title || 'Pinterest Media';
+        const author = data.metadata?.author || 'Unknown';
+
+        let caption = `*╭┈───〔 ${toStylistUpper('Pinterest Downloader')} 〕┈───⊷*\n`;
+        caption += `*├▢ 📝 Title:* ${title}\n`;
+        caption += `*├▢ 👤 Author:* ${author}\n`;
+        caption += `*├▢ 📁 Type:* ${type.toUpperCase()}\n`;
+        caption += `*╰───────────────────⊷*\n\n`;
+        caption += `> 💫 Powered by Jawad-Md`;
+
+        if (type === 'video') {
+            await conn.sendMessage(from, {
+                document: { url: mediaUrl },
+                mimetype: 'video/mp4',
+                fileName: `pinterest_${Date.now()}.mp4`,
+                caption: caption
+            }, { quoted: mek });
+        } else {
+            await conn.sendMessage(from, {
+                image: { url: mediaUrl },
+                caption: caption
+            }, { quoted: mek });
+        }
+
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error("Pinterest command error:", error);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+            return reply(`❌ *${toStylistUpper('Request Timeout!')}*\nPlease try again later.`);
+        }
+        if (error.response && error.response.status === 404) {
+            return reply(`❌ *${toStylistUpper('Invalid Pinterest link or private post!')}*`);
+        }
+        return reply(`❌ *${toStylistUpper('Error fetching Pinterest data')}!*\n\n*Error:* ${error.message}`);
+    }
+});
+
+// ==================== WEATHER COMMAND ====================
+cmd({
+    pattern: "weather",
+    alias: ["mausam", "temp"],
+    react: "🌤️",
+    desc: "Check weather of any city",
+    category: "utility",
+    use: ".weather <city_name>",
+    filename: __filename
+}, async (conn, mek, m, { from, args, reply }) => {
+    try {
+        if (!args[0]) {
+            return reply(`🌤️ *Please provide a city name!*\n\n📌 *Example:* .weather Bhakkar`);
+        }
+
+        const city = args.join(' ');
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const apiUrl = `${getRandomBase()}/weather?city=${encodeURIComponent(city)}&key=${API_KEY}`;
+        const response = await axios.get(apiUrl, { timeout: 15000 });
+        const data = response.data;
+
+        if (!data.status || !data.result) {
+            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+            return reply(`❌ *${data.error || 'City not found or API error'}*`);
+        }
+
+        const w = data.result;
+        const sunrise = new Date(w.sunrise * 1000).toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit' });
+        const sunset = new Date(w.sunset * 1000).toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit' });
+
+        let weatherMsg = `*╭┈───〔 ${toStylistUpper('Weather Update')} 〕┈───⊷*\n`;
+        weatherMsg += `*├▢ 📍 City:* ${w.city}, ${w.country}\n`;
+        weatherMsg += `*├▢ 🌡️ Temperature:* ${w.temperature}°C\n`;
+        weatherMsg += `*├▢ 🤔 Feels Like:* ${w.feels_like}°C\n`;
+        weatherMsg += `*├▢ 📉 Min:* ${w.min_temp}°C | 📈 Max: ${w.max_temp}°C\n`;
+        weatherMsg += `*├▢ 💧 Humidity:* ${w.humidity}%\n`;
+        weatherMsg += `*├▢ 🌬️ Wind Speed:* ${w.wind_speed} m/s\n`;
+        weatherMsg += `*├▢ 📊 Pressure:* ${w.pressure} hPa\n`;
+        weatherMsg += `*├▢ ☁️ Condition:* ${w.condition}\n`;
+        weatherMsg += `*├▢ 🌅 Sunrise:* ${sunrise}\n`;
+        weatherMsg += `*├▢ 🌇 Sunset:* ${sunset}\n`;
+        weatherMsg += `*╰───────────────────⊷*\n\n`;
+        weatherMsg += `> 💫 Powered by JAWAD MD`;
+
+        await conn.sendMessage(from, { text: weatherMsg }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+
+    } catch (error) {
+        console.error("Weather command error:", error);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        if (error.response && error.response.status === 404) {
+            return reply(`❌ *City not found!*\nPlease check the spelling.`);
+        }
+        return reply(`❌ *Error fetching weather!*\n\n*Error:* ${error.message}`);
+    }
+});
+
+// ==================== CHARACTER COMMAND ====================
+cmd({
+    pattern: "character",
+    alias: ["char"],
+    desc: "Check the character of a mentioned user.",
+    react: "🔥",
+    category: "fun",
+    filename: __filename,
+}, async (conn, mek, m, { from, isGroup, reply }) => {
+    try {
+        if (!isGroup) return reply("This command can only be used in groups.");
+        const mentionedUser = m.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+        if (!mentionedUser) return reply("Please mention a user whose character you want to check.");
+
+        const userChar = ["Sigma", "Generous", "Grumpy", "Overconfident", "Obedient", "Good", "Simp", "Kind", "Patient", "Pervert", "Cool", "Helpful", "Brilliant", "Sexy", "Hot", "Gorgeous", "Cute"];
+        const userCharacterSelection = userChar[Math.floor(Math.random() * userChar.length)];
+        const message = `Character of @${mentionedUser.split("@")[0]} is *${userCharacterSelection}* 🔥⚡`;
+
+        await conn.sendMessage(from, { text: message, mentions: [mentionedUser] }, { quoted: m });
+    } catch (e) {
+        console.error("Error in character command:", e);
+        reply("An error occurred while processing the command. Please try again.");
+    }
+});
+
+// ==================== PINTEREST IMAGE SEARCH ====================
+cmd({
+    pattern: "img",
+    alias: ["image", "searchimg"],
+    react: "🦋",
+    desc: "Search images from Pinterest",
+    category: "fun",
+    use: ".img <keywords>",
+    filename: __filename
+}, async (conn, mek, m, { reply, args, from }) => {
+    try {
+        const query = args.join(" ");
+        if (!query) return reply("🖼️ Please provide a search query\nExample: .img Imran Khan");
+
+        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+        const url = `https://api.nexray.eu.cc/search/pinterest?q=${encodeURIComponent(query)}`;
+        const response = await axios.get(url);
+
+        if (!response.data?.status || !response.data.result?.length) {
+            await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+            return reply("❌ No images found. Try different keywords");
+        }
+
+        const results = response.data.result.sort(() => 0.5 - Math.random()).slice(0, 5);
+        for (const imageUrl of results) {
+            if (imageUrl.images_url) {
+                await conn.sendMessage(from, { image: { url: imageUrl.images_url }, caption: `📷 Result for: ${query}\n> © Powered by JawadTechX` }, { quoted: mek });
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+    } catch (error) {
+        console.error('Pinterest Search Error:', error);
+        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+        reply(`❌ Error: ${error.message || "Failed to fetch images"}`);
+    }
+});
+
+// ==================== TWITTER ====================
+cmd({
+    pattern: "twitter",
+    alias: ["tw"],
+    desc: "Download Twitter/X videos",
+    category: "download",
+    react: "🐦",
+    filename: __filename
+}, async (conn, mek, m, { from, text, reply }) => {
+    try {
+        if (!text) return reply("🐦 Please provide a Twitter/X URL!");
+        if (!text.includes("twitter.com") && !text.includes("x.com")) return reply("❌ Please provide a valid Twitter/X URL!");
+
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        const apiUrl = `https://api.deline.web.id/downloader/twitter?url=${encodeURIComponent(text.trim())}`;
+        const response = await axios.get(apiUrl, { timeout: 30000, headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' } });
+
+        if (!response.data?.status) return reply("❌ Failed to fetch video!");
+        const data = response.data.data;
+        if (!data.downloadLink) return reply("❌ No video found!");
+
+        const caption = `╭┈───〔 Twitter Downloader 〕┈───⊷\n├▢ 🐦 Title: ${data.videoTitle || 'Twitter Video'}\n├▢ 📝 Description: ${data.videoDescription || 'N/A'}\n╰───────────────────⊷\n\n> Powered by JAWAD-MD`;
+
+        await conn.sendMessage(from, { image: { url: data.imgUrl }, caption: caption }, { quoted: mek });
+        await conn.sendMessage(from, { video: { url: data.downloadLink }, caption: `🐦 *${data.videoTitle || 'Twitter Video'}*\n\n> Powered by JAWAD-MD`, mimetype: "video/mp4" }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+    } catch (error) {
+        console.error("❌ TWITTER ERROR:", error);
+        if (error.code === 'ECONNABORTED') reply("⏰ Request timeout!");
+        else if (error.response?.status === 404) reply("❌ Video not found!");
+        else reply(`❌ Error occurred: ${error.message}`);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
+
+// ==================== GDRIVE ====================
+cmd({
+    pattern: "gdrive",
+    alias: ["googledrive", "gdl"],
+    desc: "Download files from Google Drive",
+    category: "download",
+    react: "📁",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, userConfig }) => {
+    try {
+        if (!q) return reply(`📁 *Google Drive Downloader* 📁\n\nUsage: .gdrive <link>`);
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: mek.key } });
+
+        let fileId = null;
+        const patterns = [/\/file\/d\/([^\/]+)/, /id=([^&]+)/, /\/d\/([^\/]+)/, /\/uc\?id=([^&]+)/];
+        for (const pattern of patterns) {
+            const match = q.match(pattern);
+            if (match) { fileId = match[1]; break; }
+        }
+        if (!fileId) return reply("❌ Invalid Google Drive link.");
+
+        const apiUrl = `https://api.deline.web.id/downloader/gdrive?url=https://drive.google.com/file/d/${fileId}/view`;
+        const response = await axios.get(apiUrl);
+
+        if (!response.data.status || !response.data.result) return reply("❌ Failed to fetch file.");
+        const result = response.data.result;
+
+        const fileResponse = await axios({ method: 'GET', url: result.downloadUrl, responseType: 'arraybuffer' });
+        const fileBuffer = Buffer.from(fileResponse.data);
+
+        await conn.sendMessage(from, { document: fileBuffer, fileName: result.fileName, mimetype: result.mimetype || 'application/octet-stream', caption: `📁 *${result.fileName}*\n📦 *Size:* ${result.fileSize}\n\n> ${DESCRIPTION}` }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: mek.key } });
+    } catch (error) {
+        console.error("Google Drive Error:", error);
+        await conn.sendMessage(from, { react: { text: '❌', key: mek.key } });
+        reply("❌ An error occurred while downloading.");
+    }
+});
+
+// ==================== CAPCUT ====================
+cmd({
+    pattern: "capcut",
+    desc: "Download CapCut templates",
+    category: "download",
+    react: "🎬",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, userConfig }) => {
+    try {
+        if (!q) return await reply("🎬 *Please provide a CapCut template link*");
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await reply("*⏳ Fetching CapCut template...*");
+
+        const apiUrl = `https://api.deline.web.id/downloader/capcut?url=${encodeURIComponent(q)}`;
+        const { data } = await axios.get(apiUrl);
+        if (!data.status || data.result.error) return await reply("❌ Failed to fetch CapCut template.");
+
+        const result = data.result;
+        const media = result.medias.find(v => v.quality === "No Watermark") || result.medias[0];
+        const caption = `🎬 *CapCut Template Downloaded*\n\n📌 *Title:* ${result.title}\n👤 *Author:* ${result.author}\n⏱ *Duration:* ${Math.floor(result.duration / 1000)}s\n🎞 *Quality:* ${media.quality}\n\n> ${DESCRIPTION}`;
+        await conn.sendMessage(from, { video: { url: media.url }, caption }, { quoted: mek });
+    } catch (err) {
+        console.error("CAPCUT ERROR:", err);
+        await reply("❌ Error downloading CapCut template.");
+    }
+});
+
+// ==================== APK ====================
+cmd({
+    pattern: "apk",
+    alias: ["app", "dlapk"],
+    react: "🚀",
+    desc: "📥 Download APK directly from Aptoide",
+    category: "download",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, userConfig }) => {
+    try {
+        if (!q) return reply("❌ *Please provide an app name!*");
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const apiUrl = `http://ws75.aptoide.com/api/7/apps/search/query=${encodeURIComponent(q)}/limit=1`;
+        const response = await axios.get(apiUrl);
+        const data = response.data;
+
+        if (!data || !data.datalist || !data.datalist.list || data.datalist.list.length === 0) return reply("❌ *App not found.*");
+
+        const app = data.datalist.list[0];
+        const sizeInMB = (app.size / (1024 * 1024)).toFixed(2);
+        if (app.size > 150 * 1024 * 1024) return reply("❌ *App size too large (max 150MB)*");
+
+        const caption = `✅ *APK Downloaded*\n\n📱 *App:* ${app.name}\n📦 *Size:* ${sizeInMB} MB\n\n> ${DESCRIPTION}`;
+        await conn.sendMessage(from, { document: { url: app.file.path_alt }, mimetype: "application/vnd.android.package-archive", fileName: `${app.name}.apk`, caption }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+    } catch (error) {
+        console.error("APK Error:", error);
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        reply("❌ *Error fetching APK.*");
+    }
+});
+
+// ==================== FACEBOOK ====================
+cmd({
+    pattern: "fb",
+    alias: ["facebook", "fbdl"],
+    react: '📥',
+    desc: "Download videos from Facebook",
+    category: "download",
+    use: ".fb <Facebook video URL>",
+    filename: __filename
+}, async (conn, mek, m, { from, reply, args, userConfig }) => {
+    try {
+        const fbUrl = args[0];
+        if (!fbUrl || !fbUrl.includes("facebook.com")) return reply('❌ Please provide a valid Facebook video URL.');
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
+        const response = await axios.get(apiUrl);
+        const data = response.data;
+
+        if (!data.status || !data.result || !Array.isArray(data.result)) return reply('❌ Unable to fetch video.');
+
+        const hd = data.result.find(v => v.quality === "HD");
+        const sd = data.result.find(v => v.quality === "SD");
+        const video = hd || sd;
+        if (!video) return reply("❌ Video not found.");
+
+        await reply(`Downloading video Please wait`);
+        await conn.sendMessage(from, { video: { url: video.url }, caption: `🎥 *Facebook Video Downloader*\n\n> Quality: ${video.quality}\n\n> ${DESCRIPTION}` }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+    } catch (error) {
+        console.error('FB Error:', error);
+        reply('❌ Failed to download video.');
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
+
+// ==================== MEDIAFIRE ====================
+cmd({
+    pattern: "mediafire",
+    alias: ["mfire", "mfdownload"],
+    react: '📥',
+    desc: "Download any file from MediaFire",
+    category: "download",
+    use: ".mediafire <MediaFire URL>",
+    filename: __filename
+}, async (conn, mek, m, { from, reply, args, userConfig }) => {
+    try {
+        const url = args.join(" ");
+        if (!url || !url.includes("mediafire.com")) return reply("❌ Please provide a valid MediaFire URL");
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const apiUrl = `https://api.deline.web.id/downloader/mediafire?url=${encodeURIComponent(url)}`;
+        const { data } = await axios.get(apiUrl);
+
+        if (!data || !data.status || !data.result || !data.result.downloadUrl) return reply("❌ Failed to fetch file info.");
+
+        const fileName = data.result.fileName;
+        const downloadUrl = data.result.downloadUrl;
+
+        const fileResponse = await axios.get(downloadUrl, { responseType: 'arraybuffer' });
+        const fileBuffer = Buffer.from(fileResponse.data);
+
+        const ext = fileName.split('.').pop().toLowerCase();
+        let mimetype = 'application/octet-stream';
+        if (ext === 'mp4') mimetype = 'video/mp4';
+        else if (ext === 'apk') mimetype = 'application/vnd.android.package-archive';
+        else if (ext === 'zip') mimetype = 'application/zip';
+        else if (ext === 'js') mimetype = 'text/javascript';
+
+        await conn.sendMessage(from, { document: fileBuffer, fileName: fileName, mimetype: mimetype, caption: `*MediaFire Download*\n\n📄 *File:* ${fileName}\n\n> ${DESCRIPTION}` }, { quoted: mek });
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+    } catch (error) {
+        console.error("MediaFire Error:", error);
+        reply("❌ Failed to download file.");
+        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    }
+});
+
+// ==================== NPM DOWNLOAD ====================
+cmd({
+    pattern: "dlnpm",
+    desc: "Download npm package as tgz",
+    category: "download",
+    react: "📦",
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, userConfig }) => {
+    try {
+        if (!q) return reply("❌ *Please provide a package name*");
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        const pkg = q.trim();
+        const encodedPkg = encodeURIComponent(pkg);
+        const tempDir = path.join(__dirname, '../temp');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+        const infoUrl = `https://registry.npmjs.org/${encodedPkg}`;
+        const infoRes = await axios.get(infoUrl).catch(() => null);
+        if (!infoRes || !infoRes.data) return reply("❌ Package not found.");
+
+        const data = infoRes.data;
+        const latest = data['dist-tags'].latest;
+        const tarballUrl = data.versions[latest].dist.tarball;
+
+        const safeName = pkg.replace('@', '').replace('/', '-');
+        const fileName = `${safeName}-${latest}.tgz`;
+        const filePath = path.join(tempDir, fileName);
+
+        const tarballRes = await axios.get(tarballUrl, { responseType: 'arraybuffer' });
+        fs.writeFileSync(filePath, tarballRes.data);
+
+        await conn.sendMessage(from, { document: fs.readFileSync(filePath), mimetype: 'application/gzip', fileName: fileName, caption: `📦 *NPM Package Downloaded*\n\n• *Name:* ${pkg}\n• *Version:* ${latest}\n\n> ${DESCRIPTION}` }, { quoted: mek });
+        fs.unlinkSync(filePath);
+    } catch (err) {
+        console.error("DLNPM Error:", err);
+        reply("❌ NPM package download failed");
+    }
+});
+
+// ==================== MEGA DOWNLOAD ====================
+cmd({
+    pattern: "megadl",
+    alias: ["mega", "meganz"],
+    react: "📦",
+    desc: "Download file from Mega.nz",
+    category: "download",
+    use: '.megadl <mega file link>',
+    filename: __filename
+}, async (conn, mek, m, { from, q, reply, userConfig }) => {
+    try {
+        if (!q) return reply("📦 Please provide a Mega.nz file link.");
+        const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+
+        const file = File.fromURL(q);
+        const data = await new Promise((resolve, reject) => {
+            file.download((err, data) => {
+                if (err) reject(err);
+                else resolve(data);
+            });
+        });
+
+        const savePath = path.join(os.tmpdir(), file.name || "mega_file.zip");
+        fs.writeFileSync(savePath, data);
+
+        await conn.sendMessage(from, { document: fs.readFileSync(savePath), fileName: file.name || "JawadTechX.zip", mimetype: "application/zip", caption: `📦 Downloaded from Mega NZ\n\n> ${DESCRIPTION}` }, { quoted: mek });
+        fs.unlinkSync(savePath);
+        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+    } catch (error) {
+        console.error("❌ MEGA Error:", error);
+        reply("❌ Failed to download file from Mega.nz.");
+    }
+});
+
+// ==================== YOUTUBE POST ====================
 cmd({
     pattern: "ytpost",
     alias: ["ytcommunity", "ytc"],
@@ -1110,17 +937,13 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, q, reply, userConfig }) => {
     try {
-        if (!q) return reply("Please provide a YouTube community post URL.\nExample: `.ytpost <url>`");
-
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
+        if (!q) return reply("Please provide a YouTube community post URL.");
         const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
 
         const apiUrl = `https://api.siputzx.my.id/api/d/ytpost?url=${encodeURIComponent(q)}`;
         const { data } = await axios.get(apiUrl);
 
-        if (!data.status || !data.data) {
-            return reply("Failed to fetch the community post. Please check the URL.");
-        }
+        if (!data.status || !data.data) return reply("Failed to fetch community post.");
 
         const post = data.data;
         let caption = `📢 *YouTube Community Post* 📢\n\n📜 *Content:* ${post.content}\n\n> ${DESCRIPTION}`;
@@ -1133,57 +956,37 @@ cmd({
         } else {
             await conn.sendMessage(from, { text: caption }, { quoted: mek });
         }
-
     } catch (e) {
-        console.error("Error in ytpost command:", e);
-        reply("An error occurred while fetching the YouTube community post.");
+        console.error("Error in ytpost:", e);
+        reply("An error occurred while fetching YouTube post.");
     }
 });
 
-// ==================== UNIVERSAL DOWNLOAD COMMAND ====================
+// ==================== UNIVERSAL DOWNLOAD ====================
 const platforms = {
-    youtube: {
-        pattern: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w\-_]{11})/i,
-        api: "https://jawad-tech.vercel.app/download/ytdl",
-    },
-    facebook: {
-        pattern: /(?:https?:\/\/)?(?:www\.)?(facebook\.com|fb\.watch)\/[^\s]+/i,
-        api: "https://jawad-tech.vercel.app/downloader",
-    },
-    instagram: {
-        pattern: /(?:https?:\/\/)?(?:www\.)?(instagram\.com|instagr\.am)\/[^\s]+/i,
-        api: "https://api-aswin-sparky.koyeb.app/api/downloader/igdl",
-    },
-    pinterest: {
-        pattern: /(?:https?:\/\/)?(?:www\.)?(pinterest\.com|pin\.it)\/[^\s]+/i,
-        api: "https://jawad-tech.vercel.app/download/pinterest",
-    }
+    youtube: { pattern: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w\-_]{11})/i, api: "https://jawad-tech.vercel.app/download/ytdl" },
+    facebook: { pattern: /(?:https?:\/\/)?(?:www\.)?(facebook\.com|fb\.watch)\/[^\s]+/i, api: "https://jawad-tech.vercel.app/downloader" },
+    instagram: { pattern: /(?:https?:\/\/)?(?:www\.)?(instagram\.com|instagr\.am)\/[^\s]+/i, api: "https://api-aswin-sparky.koyeb.app/api/downloader/igdl" },
+    pinterest: { pattern: /(?:https?:\/\/)?(?:www\.)?(pinterest\.com|pin\.it)\/[^\s]+/i, api: "https://jawad-tech.vercel.app/download/pinterest" }
 };
 
 cmd({
     pattern: "download",
     alias: ["down", "dl", "downurl"],
-    desc: "Download from any URL (Social Media, Images, Videos, Audio, Documents)",
+    desc: "Download from any URL",
     category: "download",
     react: "⬇️",
     filename: __filename
 }, async (conn, mek, m, { from, q, reply, userConfig }) => {
     try {
-        if (!q) {
-            return await reply("❌ Please provide a URL to download!\n\nExample:\n.download https://youtu.be/xxxx\n.download https://instagram.com/p/xxxx\n.download https://example.com/image.jpg\n.download https://example.com/song.mp3");
-        }
+        if (!q) return await reply("❌ Please provide a URL to download!");
 
-        // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
         const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
-
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         let matchedPlatform = null;
         for (const [platform, data] of Object.entries(platforms)) {
-            if (q.match(data.pattern)) {
-                matchedPlatform = platform;
-                break;
-            }
+            if (q.match(data.pattern)) { matchedPlatform = platform; break; }
         }
 
         if (matchedPlatform) {
@@ -1191,12 +994,10 @@ cmd({
         } else {
             await handleDirectDownload(conn, from, q, m, DESCRIPTION);
         }
-
         await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
     } catch (error) {
         console.error("Download error:", error);
-        await reply("❌ Failed to download. Please check the URL and try again.");
+        await reply("❌ Failed to download.");
         await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
     }
 });
@@ -1205,7 +1006,7 @@ async function handleSocialDownload(conn, from, url, platformType, message, DESC
     try {
         switch (platformType) {
             case "instagram":
-                await downloadInstagram(conn, from, url, message, DESCRIPTION);
+                await downloadInstagram(conn, { key: message.key }, message, { from, reply: () => {}, q: url, userConfig: { DESCRIPTION } });
                 break;
             case "youtube":
                 await downloadYouTube(conn, from, url, message, DESCRIPTION);
@@ -1216,86 +1017,29 @@ async function handleSocialDownload(conn, from, url, platformType, message, DESC
             case "pinterest":
                 await downloadPinterest(conn, from, url, message, DESCRIPTION);
                 break;
-            default:
-                throw new Error("Unsupported platform");
         }
-    } catch (error) {
-        console.error(`Social download error for ${platformType}:`, error);
-        throw error;
-    }
-}
-
-async function downloadInstagram(conn, from, url, message, DESCRIPTION) {
-    const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(url)}`;
-    const response = await axios.get(apiUrl);
-
-    if (!response.data?.status || !response.data.data?.length) {
-        throw new Error("Failed to fetch Instagram media");
-    }
-    
-    const mediaData = response.data.data;
-    let sentCount = 0;
-
-    for (const item of mediaData) {
-        const mediaType = item.type === 'video' ? 'video' : 'image';
-        
-        await conn.sendMessage(from, {
-            [mediaType]: { url: item.url },
-            caption: sentCount === 0 ? `> ${DESCRIPTION}` : undefined
-        }, { quoted: message });
-        
-        sentCount++;
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    } catch (error) { throw error; }
 }
 
 async function downloadYouTube(conn, from, url, message, DESCRIPTION) {
-    const apiUrl = `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`;
-    const response = await axios.get(apiUrl);
-
-    if (!response.data?.status || !response.data.result?.mp4) {
-        throw new Error("Failed to fetch YouTube video");
-    }
-    
-    await conn.sendMessage(from, {
-        video: { url: response.data.result.mp4 },
-        caption: `> ${DESCRIPTION}`
-    }, { quoted: message });
+    const response = await axios.get(`https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(url)}`);
+    if (!response.data?.status || !response.data.result?.mp4) throw new Error("Failed to fetch YouTube video");
+    await conn.sendMessage(from, { video: { url: response.data.result.mp4 }, caption: `> ${DESCRIPTION}` }, { quoted: message });
 }
 
 async function downloadFacebook(conn, from, url, message, DESCRIPTION) {
-    const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(url)}`;
-    const response = await axios.get(apiUrl);
-
-    if (!response.data?.status || !response.data.result?.length) {
-        throw new Error("Failed to fetch Facebook video");
-    }
-    
-    const video = response.data.result.find(v => v.quality === "HD") || 
-                  response.data.result.find(v => v.quality === "SD");
-                  
+    const response = await axios.get(`https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(url)}`);
+    if (!response.data?.status || !response.data.result?.length) throw new Error("Failed to fetch Facebook video");
+    const video = response.data.result.find(v => v.quality === "HD") || response.data.result.find(v => v.quality === "SD");
     if (!video?.url) throw new Error("No video URL found");
-    
-    await conn.sendMessage(from, {
-        video: { url: video.url },
-        caption: `> ${DESCRIPTION}`
-    }, { quoted: message });
+    await conn.sendMessage(from, { video: { url: video.url }, caption: `> ${DESCRIPTION}` }, { quoted: message });
 }
 
 async function downloadPinterest(conn, from, url, message, DESCRIPTION) {
-    const apiUrl = `https://jawad-tech.vercel.app/download/pinterest?url=${encodeURIComponent(url)}`;
-    const response = await axios.get(apiUrl);
-
-    if (!response.data?.status || !response.data.result?.url) {
-        throw new Error("Failed to fetch Pinterest media");
-    }
-    
+    const response = await axios.get(`https://jawad-tech.vercel.app/download/pinterest?url=${encodeURIComponent(url)}`);
+    if (!response.data?.status || !response.data.result?.url) throw new Error("Failed to fetch Pinterest media");
     const isVideo = response.data.result.type === 'video';
-    
-    await conn.sendMessage(from, {
-        [isVideo ? 'video' : 'image']: { url: response.data.result.url },
-        caption: `> ${DESCRIPTION}`
-    }, { quoted: message });
+    await conn.sendMessage(from, { [isVideo ? 'video' : 'image']: { url: response.data.result.url }, caption: `> ${DESCRIPTION}` }, { quoted: message });
 }
 
 async function handleDirectDownload(conn, from, url, message, DESCRIPTION) {
@@ -1305,73 +1049,27 @@ async function handleDirectDownload(conn, from, url, message, DESCRIPTION) {
         const contentLength = headResponse?.headers['content-length'];
         const fileName = url.split('/').pop().split('?')[0] || 'download';
 
-        if (contentLength && parseInt(contentLength) > 100 * 1024 * 1024) {
-            throw new Error("File too large (max 100MB)");
-        }
+        if (contentLength && parseInt(contentLength) > 100 * 1024 * 1024) throw new Error("File too large (max 100MB)");
 
         if (!contentType) {
             const ext = path.extname(fileName).toLowerCase();
-            const mimeTypes = {
-                '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
-                '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
-                '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo',
-                '.mkv': 'video/x-matroska', '.webm': 'video/webm',
-                '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4',
-                '.ogg': 'audio/ogg', '.aac': 'audio/aac',
-                '.pdf': 'application/pdf', '.zip': 'application/zip', '.rar': 'application/x-rar-compressed'
-            };
+            const mimeTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.pdf': 'application/pdf', '.zip': 'application/zip' };
             contentType = mimeTypes[ext] || 'application/octet-stream';
         }
 
         if (contentType.startsWith('image/')) {
-            await conn.sendMessage(from, {
-                image: { url: url },
-                caption: `> ${DESCRIPTION}`
-            }, { quoted: message });
-        }
-        else if (contentType.startsWith('video/')) {
-            await conn.sendMessage(from, {
-                video: { url: url },
-                caption: `> ${DESCRIPTION}`,
-                mimetype: contentType
-            }, { quoted: message });
-        }
-        else if (contentType.startsWith('audio/')) {
-            await conn.sendMessage(from, {
-                audio: { url: url },
-                mimetype: contentType,
-                caption: `> ${DESCRIPTION}`
-            }, { quoted: message });
-        }
-        else {
+            await conn.sendMessage(from, { image: { url: url }, caption: `> ${DESCRIPTION}` }, { quoted: message });
+        } else if (contentType.startsWith('video/')) {
+            await conn.sendMessage(from, { video: { url: url }, caption: `> ${DESCRIPTION}`, mimetype: contentType }, { quoted: message });
+        } else if (contentType.startsWith('audio/')) {
+            await conn.sendMessage(from, { audio: { url: url }, mimetype: contentType, caption: `> ${DESCRIPTION}` }, { quoted: message });
+        } else {
             const response = await axios({ method: 'GET', url: url, responseType: 'arraybuffer', timeout: 30000 });
             const buffer = Buffer.from(response.data);
-            
-            await conn.sendMessage(from, {
-                document: buffer,
-                fileName: fileName,
-                mimetype: contentType,
-                caption: `> ${DESCRIPTION}`
-            }, { quoted: message });
+            await conn.sendMessage(from, { document: buffer, fileName: fileName, mimetype: contentType, caption: `> ${DESCRIPTION}` }, { quoted: message });
         }
-
     } catch (error) {
         console.error("Direct download error:", error);
-        
-        try {
-            const response = await axios({ method: 'GET', url: url, responseType: 'arraybuffer', timeout: 30000 });
-            const buffer = Buffer.from(response.data);
-            const fileName = url.split('/').pop().split('?')[0] || 'download';
-            const contentType = response.headers['content-type'] || 'application/octet-stream';
-
-            await conn.sendMessage(from, {
-                document: buffer,
-                fileName: fileName,
-                mimetype: contentType,
-                caption: `> ${DESCRIPTION}`
-            }, { quoted: message });
-        } catch (fallbackError) {
-            throw new Error("Failed to download file");
-        }
+        throw new Error("Failed to download file");
     }
 }
