@@ -14,6 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const STICKERS_DIR = path.join(process.cwd(), 'data', 'saved_stickers');
 const STORE_FILE = path.join(process.cwd(), 'data', 'saved_stickers.json');
 const MAX_STICKER_BYTES = 1 * 1024 * 1024;
+const RS_COOLDOWN_MS = 5 * 60 * 1000;
 
 fs.ensureDirSync(STICKERS_DIR);
 
@@ -62,6 +63,13 @@ function ensureBuffer(data) {
     }
     if (data instanceof Uint8Array) return Buffer.from(data);
     return Buffer.alloc(0);
+}
+
+function formatCooldown(ms) {
+    const totalSec = Math.ceil(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 cmd({
@@ -135,6 +143,7 @@ cmd({
             isAvatar: !!targetSticker.isAvatar,
             isLottie: !!targetSticker.isLottie,
             savedAt: Date.now(),
+            lastUsedAt: 0,
             localFile: localFileName,
             savedByPushName: msg.pushName || ''
         };
@@ -144,7 +153,7 @@ cmd({
         await sock.sendMessage(from, { react: { text: '✅', key: msg.key } }).catch(() => {});
 
         return await sock.sendMessage(from, {
-            text: `✅ *Sticker Saved*\n\n📦 Size: ${(actualSize / 1024).toFixed(1)} KB\n\n⚡ *How to use .rs*\n📌 Reply to any message, then:\n\n• *.rs* → 20 reactions (default)\n• *.rs 10* → 10 reactions\n• *.rs 1* → 1 reaction\n\n📏 Range: 1 – 20`
+            text: `✅ *Sticker Saved*\n\n📦 Size: ${(actualSize / 1024).toFixed(1)} KB\n\n⚡ *How to use .rs*\n📌 Reply to any message, then:\n\n• *.rs* → 20 reactions (default)\n• *.rs 10* → 10 reactions\n• *.rs 1* → 1 reaction\n\n📏 Range: 1 – 20\n⏳ Cooldown: 5 min between uses`
         }, { quoted: msg });
 
     } catch (e) {
@@ -174,7 +183,13 @@ cmd({
 
         if (!stanzaId) {
             return await sock.sendMessage(from, {
-                text: `⚡ *Sticker Reaction*\n\n⚠️ Reply to a message first\n⚡ Default: *.rs* → 20x\n⚡ Custom: *.rs 1* → 1x\n⚡ Range: 1 – 20`
+                text: `⚡ *Sticker Reaction*\n\n⚠️ Reply to a message first\n⚡ Default: *.rs* → 20x\n⚡ Custom: *.rs 1* → 1x\n⚡ Range: 1 – 20\n⏳ Cooldown: 5 min`
+            }, { quoted: msg });
+        }
+
+        if (quotedMsgContent?.stickerMessage) {
+            return await sock.sendMessage(from, {
+                text: `⚠️ *Invalid Target*\n\n📌 You replied to a sticker.\n💡 Reply to a *normal message* instead.\n\n⚡ Usage: *.rs* / *.rs 10* / *.rs 1*`
             }, { quoted: msg });
         }
 
@@ -200,44 +215,39 @@ cmd({
             isFromMe = true;
         }
 
-        let poolPayloads = [];
-
-        if (quotedMsgContent?.stickerMessage) {
-            const sm = quotedMsgContent.stickerMessage;
-            poolPayloads = [{
-                url: sm.url,
-                fileSha256: ensureBuffer(sm.fileSha256),
-                fileEncSha256: ensureBuffer(sm.fileEncSha256),
-                mediaKey: ensureBuffer(sm.mediaKey),
-                fileLength: sm.fileLength ? Number(sm.fileLength) : 134248,
-                height: 512,
-                width: 512,
-                mimetype: sm.mimetype || 'image/webp',
-                directPath: sm.directPath,
-                isAnimated: !!sm.isAnimated
-            }];
-        } else {
-            const store = loadSavedStickers();
-            const s = store.sticker;
-            if (!s) {
-                return await sock.sendMessage(from, {
-                    text: `⚠️ *No Sticker Saved*\n\n📭 Empty\n💾 Reply sticker with *.sts*`
-                }, { quoted: msg });
-            }
-
-            poolPayloads = [{
-                url: s.url || '',
-                fileSha256: ensureBuffer(s.fileSha256),
-                fileEncSha256: ensureBuffer(s.fileEncSha256),
-                mediaKey: ensureBuffer(s.mediaKey),
-                fileLength: s.fileLength || 134248,
-                height: 512,
-                width: 512,
-                mimetype: s.mimetype || 'image/webp',
-                directPath: s.directPath || '',
-                isAnimated: !!s.isAnimated
-            }];
+        const store = loadSavedStickers();
+        const s = store.sticker;
+        if (!s) {
+            return await sock.sendMessage(from, {
+                text: `⚠️ *No Sticker Saved*\n\n📭 Empty\n💾 Reply sticker with *.sts*`
+            }, { quoted: msg });
         }
+
+        const lastUsedAt = s.lastUsedAt || 0;
+        const elapsed = Date.now() - lastUsedAt;
+
+        if (lastUsedAt > 0 && elapsed < RS_COOLDOWN_MS) {
+            const remaining = RS_COOLDOWN_MS - elapsed;
+            return await sock.sendMessage(from, {
+                text: `⏳ *Cooldown Active*\n\nWait *${formatCooldown(remaining)}* before using *.rs* again.\n\n📌 Cooldown: 5 minutes between reactions`
+            }, { quoted: msg });
+        }
+
+        const poolPayload = {
+            url: s.url || '',
+            fileSha256: ensureBuffer(s.fileSha256),
+            fileEncSha256: ensureBuffer(s.fileEncSha256),
+            mediaKey: ensureBuffer(s.mediaKey),
+            fileLength: s.fileLength || 134248,
+            height: 512,
+            width: 512,
+            mimetype: s.mimetype || 'image/webp',
+            directPath: s.directPath || '',
+            isAnimated: !!s.isAnimated
+        };
+
+        s.lastUsedAt = Date.now();
+        persistStickers(store);
 
         await sock.sendMessage(from, { react: { text: '⚡', key: msg.key } }).catch(() => {});
 
@@ -248,23 +258,40 @@ cmd({
             ...(isGroup && quotedNorm ? { participant: quotedNorm } : {})
         };
 
+        const BATCH_SIZE = 5;
+        const PER_GAP = 400;
+        const BATCH_GAP = 1200;
+        const MAX_RETRIES = 2;
+
         for (let i = 0; i < count; i++) {
-            try {
-                await sock.relayMessage(from, {
-                    messageContextInfo: {
-                        messageAssociation: {
-                            associationType: 11,
-                            parentMessageKey: targetKey
-                        }
-                    },
-                    stickerMessage: poolPayloads[0]
-                }, {});
-            } catch (sendErr) {
-                console.error(`[StickerReact Error ${i + 1}]:`, sendErr.message);
+            let ok = false;
+            for (let attempt = 0; attempt <= MAX_RETRIES && !ok; attempt++) {
+                try {
+                    await sock.relayMessage(from, {
+                        messageContextInfo: {
+                            messageAssociation: {
+                                associationType: 11,
+                                parentMessageKey: targetKey
+                            }
+                        },
+                        stickerMessage: poolPayload
+                    }, {});
+                    ok = true;
+                } catch (err) {
+                    if (attempt === MAX_RETRIES) {
+                        console.error(`[React ${i + 1} failed after retries]:`, err.message);
+                    } else {
+                        await new Promise(r => setTimeout(r, 800));
+                    }
+                }
             }
 
             if (i < count - 1) {
-                await new Promise(r => setTimeout(r, 260));
+                if ((i + 1) % BATCH_SIZE === 0) {
+                    await new Promise(r => setTimeout(r, BATCH_GAP));
+                } else {
+                    await new Promise(r => setTimeout(r, PER_GAP));
+                }
             }
         }
 
