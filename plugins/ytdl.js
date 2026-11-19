@@ -9,13 +9,11 @@ import { Pubg } from '../lib/jawi.js';
 const __filename = fileURLToPath(import.meta.url);
 
 const API_BASES = [
-    "https://jawadtechhubxd.onrender.com",
-    "https://jawadtechhub.vercel.app",
-    "https://jawadtechhub.onrender.com"
+    "https://xjawadtech.vercel.app",
+    "https://jawadtechhub.vercel.app"
 ];
 const API_KEY = Pubg;
 
-// Shuffle servers and pick 1 random each time
 function getRandomBase() {
     const shuffled = [...API_BASES];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -25,9 +23,6 @@ function getRandomBase() {
     return shuffled[0];
 }
 
-// ============================================
-// HELPERS
-// ============================================
 function getBotName(userConfig) {
     return userConfig?.BOT_NAME || global?.config?.BOT_NAME || "JawadTechX";
 }
@@ -73,9 +68,6 @@ function getVideoId(url) {
     return null;
 }
 
-// ============================================
-// KHAN-MD STYLE CAPTIONS
-// ============================================
 function buildAudioInfoCaption(vid, BOT_NAME) {
     return `- *AUDIO DOWNLOADER 🎧*\n╭━━❐━⪼\n┇๏ *Title* - ${vid.title}\n┇๏ *Duration* - ${vid.timestamp}\n┇๏ *Views* - ${vid.viewsText || vid.views?.toLocaleString() || 'N/A'}\n┇๏ *Author* - ${vid.author?.name || 'Unknown'}\n┇๏ *Status* - Downloading...\n╰━━❑━⪼\n> Powered by ${BOT_NAME}`;
 }
@@ -119,9 +111,6 @@ function buildQualityCaption(vid, headerTitle, headerEmoji, BOT_NAME) {
 > Powered by ${BOT_NAME}`;
 }
 
-// ============================================
-// DOWNLOAD / SEND HELPERS
-// ============================================
 async function downloadToDisk(url, ext) {
     const tempPath = path.join(os.tmpdir(), `dl_${Date.now()}.${ext}`);
     const response = await axios({
@@ -240,9 +229,6 @@ async function sendAudioWithFallback(conn, from, mek, audioUrl, title, format, B
     }
 }
 
-// ============================================
-// API HELPERS
-// ============================================
 async function getYtsApiSearch(query) {
     try {
         const apiUrl = `${getRandomBase()}/yts?q=${encodeURIComponent(query)}&key=${API_KEY}`;
@@ -273,7 +259,6 @@ function mapApiResultToVid(r) {
 async function getVideoInfo(text) {
     const isUrl = text.startsWith('http://') || text.startsWith('https://');
 
-    // ---------- 1) Try npm yt-search ----------
     try {
         const { default: yts } = await import('yt-search');
         if (isUrl) {
@@ -292,7 +277,6 @@ async function getVideoInfo(text) {
         console.error('⚠️ yt-search (npm) failed, trying backup API:', e.message);
     }
 
-    // ---------- 2) Fallback to /yts API ----------
     try {
         if (isUrl) {
             const videoId = getVideoId(text);
@@ -348,9 +332,6 @@ async function getVideoLink(vidUrl, quality) {
     return null;
 }
 
-// ============================================
-// QUALITY SELECT HANDLER
-// ============================================
 async function handleQualitySelect(conn, from, mek, vid, url, mode, BOT_NAME) {
     const caption = buildQualityCaption(vid, mode.title, mode.emoji, BOT_NAME);
     const sent = await conn.sendMessage(from, { image: { url: vid.thumbnail }, caption }, { quoted: mek });
@@ -392,9 +373,6 @@ async function handleQualitySelect(conn, from, mek, vid, url, mode, BOT_NAME) {
     setTimeout(() => conn.ev.off("messages.upsert", listener), 60000);
 }
 
-// ============================================
-// COMMAND: play
-// ============================================
 cmd({
     pattern: "play",
     alias: ["music", "audio"],
@@ -432,9 +410,6 @@ cmd({
     }
 });
 
-// ============================================
-// COMMAND: song
-// ============================================
 cmd({
     pattern: "song",
     alias: ["music2"],
@@ -471,9 +446,6 @@ cmd({
     }
 });
 
-// ============================================
-// COMMAND: ytmp3
-// ============================================
 cmd({
     pattern: "ytmp3",
     desc: "Download audio from direct link",
@@ -509,9 +481,6 @@ cmd({
     }
 });
 
-// ============================================
-// COMMAND: ytmp4
-// ============================================
 cmd({
     pattern: "ytmp4",
     desc: "Download video from direct link",
@@ -549,9 +518,6 @@ cmd({
     }
 });
 
-// ============================================
-// COMMAND: ytdl
-// ============================================
 cmd({
     pattern: "ytdl",
     desc: "Download YouTube audio/video with options",
@@ -627,9 +593,6 @@ cmd({
     } catch (e) { reply("❌ Error"); }
 });
 
-// ============================================
-// COMMAND: yts (with API fallback)
-// ============================================
 cmd({
     pattern: "yts",
     desc: "Search YouTube videos",
@@ -681,9 +644,6 @@ cmd({
     }
 });
 
-// ============================================
-// COMMAND: video
-// ============================================
 cmd({
     pattern: "video",
     alias: ["vd"],
@@ -720,9 +680,6 @@ cmd({
     } catch (e) { reply("❌ Download Failed!"); }
 });
 
-// ============================================
-// COMMAND: video2
-// ============================================
 cmd({
     pattern: "video2",
     desc: "Download YouTube video with quality options",
@@ -742,9 +699,6 @@ cmd({
     } catch (e) { reply("❌ Error"); }
 });
 
-// ============================================
-// COMMAND: movie
-// ============================================
 cmd({
     pattern: "movie",
     alias: ["film", "mv"],
@@ -781,9 +735,6 @@ cmd({
     } catch (e) { reply("❌ Download Failed!"); }
 });
 
-// ============================================
-// COMMAND: movie2
-// ============================================
 cmd({
     pattern: "movie2",
     desc: "Download full movie with quality",
@@ -803,9 +754,6 @@ cmd({
     } catch (e) { reply("❌ Error"); }
 });
 
-// ============================================
-// COMMAND: cartoon
-// ============================================
 cmd({
     pattern: "cartoon",
     desc: "Download cartoon video",
@@ -841,9 +789,6 @@ cmd({
     } catch (e) { reply("❌ Download Failed!"); }
 });
 
-// ============================================
-// COMMAND: cartoon2
-// ============================================
 cmd({
     pattern: "cartoon2",
     desc: "Download cartoon with quality",
@@ -863,9 +808,6 @@ cmd({
     } catch (e) { reply("❌ Error"); }
 });
 
-// ============================================
-// COMMAND: drama (Video / Video-as-Document menu)
-// ============================================
 cmd({
     pattern: "drama",
     desc: "Download drama episode",
@@ -939,9 +881,6 @@ cmd({
     } catch (e) { reply("❌ Error"); }
 });
 
-// ============================================
-// COMMAND: drama2
-// ============================================
 cmd({
     pattern: "drama2",
     desc: "Download drama with quality",
