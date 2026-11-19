@@ -3,30 +3,31 @@ import { cmd } from '../command.js';
 import axios from 'axios';
 import FormData from 'form-data';
 import path from 'path';
-import { Web, Pubg } from '../lib/jawi.js';
+import { Pubg } from '../lib/jawi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Helper function to extract number from JID
 function extractNumber(jid) {
     if (!jid) return '';
     return jid.split('@')[0];
 }
 
-
-// ============================================
-// API CONFIG
-// ============================================
 const API_BASES = [
-    Web,
-    "https://jawadtechhub.onrender.com"
+    "https://xjawadtech.vercel.app",
+    "https://jawadtechhub.vercel.app"
 ];
 const API_KEY = Pubg;
 
-const getRandomBase = () => API_BASES[Math.floor(Math.random() * API_BASES.length)];
+function getRandomBase() {
+    const shuffled = [...API_BASES];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled[0];
+}
 
-// ImgBB keys (fallback)
 const IMGBB_API_KEYS = [
     'ebb2d6cad946fa45d7d9c4cc7dfa87e3',
     'b9b79efc2a2cf5380b57974bba4ce6d4',
@@ -39,9 +40,6 @@ function getRandomImgbbKey() {
     return IMGBB_API_KEYS[Math.floor(Math.random() * IMGBB_API_KEYS.length)];
 }
 
-// ============================================
-// Helper: Catbox via your API
-// ============================================
 async function uploadToCatbox(buffer, filename) {
     const form = new FormData();
     form.append('file', buffer, filename);
@@ -64,9 +62,6 @@ async function uploadToCatbox(buffer, filename) {
     return data.result.url;
 }
 
-// ============================================
-// Helper: ImgBB fallback
-// ============================================
 async function uploadToImgbb(buffer) {
     const form = new FormData();
     form.append('key', getRandomImgbbKey());
@@ -86,9 +81,6 @@ async function uploadToImgbb(buffer) {
     return url;
 }
 
-// ===============================
-// BOT DP COMMAND — Catbox first, ImgBB fallback
-// ===============================
 cmd({
     pattern: "botdp",
     alias: ["botimage", "botpic", "botphoto"],
@@ -105,7 +97,6 @@ async (conn, mek, m, { from, reply, isCreator, args, updateUserConfig, userConfi
     try {
         let imageUrl = args[0];
 
-        // ---- Case 1: reply to image → upload ----
         if (!imageUrl && m.quoted) {
             const quotedMsg = m.quoted;
             const mimeType = (quotedMsg.msg || quotedMsg).mimetype || '';
@@ -124,14 +115,12 @@ async (conn, mek, m, { from, reply, isCreator, args, updateUserConfig, userConfi
             const fileName = `botdp_${Date.now()}.jpg`;
             let source = null;
 
-            // 1. Try Catbox
             try {
                 imageUrl = await uploadToCatbox(mediaBuffer, fileName);
                 source = 'Catbox';
             } catch (catboxErr) {
                 console.error('⚠️ Catbox failed for botdp:', catboxErr.message);
 
-                // 2. Fallback to ImgBB
                 try {
                     imageUrl = await uploadToImgbb(mediaBuffer);
                     source = 'ImgBB';
@@ -147,16 +136,13 @@ async (conn, mek, m, { from, reply, isCreator, args, updateUserConfig, userConfi
             console.log(`✅ botdp uploaded via ${source}: ${imageUrl}`);
         }
 
-        // ---- Case 2: direct URL provided ----
         if (!imageUrl || !imageUrl.startsWith("http")) {
             return reply("❌ Provide a valid image URL or reply to an image.");
         }
 
-        // Save to user config
         userConfig.BOT_IMAGE = imageUrl;
         await updateUserConfig(sanitizedNumber, userConfig);
 
-        // Send confirmation with image
         await conn.sendMessage(from, {
             image: { url: imageUrl },
             caption: `✅ *Bot Display Picture Updated Successfully!*\n\n📁 *Image URL:* ${imageUrl}\n\n> © Updated by JawadTechX 💜`
@@ -168,6 +154,7 @@ async (conn, mek, m, { from, reply, isCreator, args, updateUserConfig, userConfi
         await reply(`❌ Error: ${error.message || error}`);
     }
 });
+
 
 // ==================== CHANNEL COMMAND ====================
 cmd({
