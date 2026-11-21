@@ -10,7 +10,6 @@ import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from '@ffmpeg-installer/ffmpeg';
-import converter from '../lib/converter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 ffmpeg.setFfmpegPath(ffmpegPath.path);
@@ -211,7 +210,6 @@ cmd({
     }
 });
 
-
 // ==================== SET GROUP PICTURE COMMAND ====================
 cmd({
     pattern: "gcpp",
@@ -241,6 +239,7 @@ cmd({
     }
 });
 
+// ==================== EVERYONE COMMAND ====================
 cmd({
     pattern: "everyone",
     react: "🔊",
@@ -251,29 +250,23 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, reply, isGroup, isAdmins, isCreator, command, body }) => {
     try {
-        // ✅ Show typing presence
         await conn.sendPresenceUpdate('composing', from);
         
-        // ✅ Group check
         if (!isGroup) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
             return reply("❌ This command can only be used in groups.");
         }
 
-        // ✅ Permission check (Admin OR Bot Owner)
         if (!isAdmins && !isCreator) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
             return reply("❌ Only group admins or the bot owner can use this command.");
         }
 
-        // ✅ Extract message
         let message = body.slice(body.indexOf(command) + command.length).trim();
         if (!message) message = "Attention Everyone";
 
-        // Create message with @all mention
         let teks = `@all ${message}`;
 
-        // Send using new @all format
         await conn.sendMessage(from, { 
             text: teks,
             contextInfo: {
@@ -335,7 +328,6 @@ cmd({
     }
 });
 
-
 // ==================== TAGALL COMMAND ====================
 cmd({
     pattern: "tagall",
@@ -386,9 +378,6 @@ cmd({
         reply(`❌ *Error Occurred !!*\n\n${e.message || e}`);
     }
 });
-
-
-
 
 // ==================== GROUP INFO COMMAND ====================
 cmd({
@@ -681,12 +670,10 @@ cmd({
         if (!isGroup) return reply("❌ This command can only be used in groups.");
         if (!isCreator) return reply("❌ Only the bot creator can use this command.");
 
-        // Get the full text with spaces preserved
         let fullText = "";
         if (m.quoted) {
             fullText = m.quoted.text || q || "";
         } else if (q) {
-            // Get the original message text and remove only the command part
             const cmdPattern = m.text?.match(/^[.!]?h(?:idetag)?\s*/i);
             if (cmdPattern) {
                 fullText = m.text.replace(cmdPattern[0], "").trim();
@@ -757,12 +744,10 @@ cmd({
         if (!isGroup) return reply("❌ This command can only be used in groups.");
         if (!isAdmins && !isCreator) return reply("❌ Only group admins can use this command.");
 
-        // Get the full text with spaces preserved
         let fullText = "";
         if (m.quoted) {
             fullText = m.quoted.text || q || "";
         } else if (q) {
-            // Get the original message text and remove only the command part
             const cmdPattern = m.text?.match(/^[.!]?tag(?:gc)?\s*/i);
             if (cmdPattern) {
                 fullText = m.text.replace(cmdPattern[0], "").trim();
