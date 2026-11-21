@@ -32,7 +32,7 @@ async function downloadToDisk(url, ext) {
     return tempPath;
 }
 
-async function sendBySize(conn, from, mek, videoUrl, title, format, BOT_NAME) {
+async function sendBySize(conn, from, mek, videoUrl, title, format, BOT_NAME, quality) {
     const ext = format || 'mp4';
     const mimetype = 'video/mp4';
     let tempPath = null;
@@ -46,14 +46,14 @@ async function sendBySize(conn, from, mek, videoUrl, title, format, BOT_NAME) {
                 video: fs.readFileSync(tempPath),
                 mimetype: mimetype,
                 fileName: `${title}.${ext}`,
-                caption: `📶 *Facebook Downloader*\n\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
+                caption: `📶 *Facebook Downloader*\n\n- ❤‍🩹 *Quality*: ${quality}\n\n> Powered by ${BOT_NAME}`
             }, { quoted: mek });
         } else {
             await conn.sendMessage(from, {
                 document: fs.readFileSync(tempPath),
                 mimetype: mimetype,
                 fileName: `${title}.${ext}`,
-                caption: `📶 *Facebook Downloader*\n\n- 📄 *Video Document* (>${SIZE_LIMIT_MB}MB)\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
+                caption: `📶 *Facebook Downloader*\n\n- 📄 *Video Document* (>${SIZE_LIMIT_MB}MB)\n- ❤‍🩹 *Quality*: ${quality}\n\n> Powered by ${BOT_NAME}`
             }, { quoted: mek });
         }
         if (tempPath && fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
@@ -1028,41 +1028,22 @@ cmd({
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         let videoUrl = null;
+        let qualityLabel = 'HD';
 
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+        try {
+            const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
+            const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === true && data?.data) {
-                    videoUrl = data.data.high || data.data.low || null;
+            if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
+                const hd = data.result.find(v => v.quality === 'HD');
+                const sd = data.result.find(v => v.quality === 'SD');
+                const pick = hd || sd || data.result[0];
+                if (pick?.url) {
+                    videoUrl = pick.url;
+                    qualityLabel = pick.quality || 'HD';
                 }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
-                    const hd = data.result.find(v => v.quality === 'HD') || data.result[0];
-                    if (hd?.url) videoUrl = hd.url;
-                }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/fb?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && Array.isArray(data?.results) && data.results.length > 0) {
-                    const hd = data.results.find(v => v.quality && v.quality.includes('HD')) || data.results[0];
-                    if (hd?.url && hd.url !== '/') videoUrl = hd.url;
-                }
-            } catch {}
-        }
+            }
+        } catch {}
 
         if (!videoUrl) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
@@ -1071,7 +1052,7 @@ cmd({
 
         await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
 
-        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME);
+        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME, qualityLabel);
 
         if (sent) {
             await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
@@ -1106,41 +1087,22 @@ cmd({
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         let videoUrl = null;
+        let qualityLabel = 'HD';
 
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+        try {
+            const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
+            const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === true && data?.data) {
-                    videoUrl = data.data.high || data.data.low || null;
+            if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
+                const hd = data.result.find(v => v.quality === 'HD');
+                const sd = data.result.find(v => v.quality === 'SD');
+                const pick = hd || sd || data.result[0];
+                if (pick?.url) {
+                    videoUrl = pick.url;
+                    qualityLabel = pick.quality || 'HD';
                 }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
-                    const hd = data.result.find(v => v.quality === 'HD') || data.result[0];
-                    if (hd?.url) videoUrl = hd.url;
-                }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/fb?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && Array.isArray(data?.results) && data.results.length > 0) {
-                    const hd = data.results.find(v => v.quality && v.quality.includes('HD')) || data.results[0];
-                    if (hd?.url && hd.url !== '/') videoUrl = hd.url;
-                }
-            } catch {}
-        }
+            }
+        } catch {}
 
         if (!videoUrl) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
@@ -1149,7 +1111,7 @@ cmd({
 
         await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
 
-        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME);
+        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME, qualityLabel);
 
         if (sent) {
             await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
@@ -1184,41 +1146,22 @@ cmd({
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         let videoUrl = null;
+        let qualityLabel = 'HD';
 
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+        try {
+            const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
+            const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === true && data?.data) {
-                    videoUrl = data.data.high || data.data.low || null;
+            if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
+                const hd = data.result.find(v => v.quality === 'HD');
+                const sd = data.result.find(v => v.quality === 'SD');
+                const pick = hd || sd || data.result[0];
+                if (pick?.url) {
+                    videoUrl = pick.url;
+                    qualityLabel = pick.quality || 'HD';
                 }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
-                    const hd = data.result.find(v => v.quality === 'HD') || data.result[0];
-                    if (hd?.url) videoUrl = hd.url;
-                }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/fb?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && Array.isArray(data?.results) && data.results.length > 0) {
-                    const hd = data.results.find(v => v.quality && v.quality.includes('HD')) || data.results[0];
-                    if (hd?.url && hd.url !== '/') videoUrl = hd.url;
-                }
-            } catch {}
-        }
+            }
+        } catch {}
 
         if (!videoUrl) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
@@ -1227,7 +1170,7 @@ cmd({
 
         await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
 
-        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME);
+        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME, qualityLabel);
 
         if (sent) {
             await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
@@ -1262,41 +1205,22 @@ cmd({
         await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
 
         let videoUrl = null;
+        let qualityLabel = 'HD';
 
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+        try {
+            const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
+            const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === true && data?.data) {
-                    videoUrl = data.data.high || data.data.low || null;
+            if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
+                const hd = data.result.find(v => v.quality === 'HD');
+                const sd = data.result.find(v => v.quality === 'SD');
+                const pick = hd || sd || data.result[0];
+                if (pick?.url) {
+                    videoUrl = pick.url;
+                    qualityLabel = pick.quality || 'HD';
                 }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
-                    const hd = data.result.find(v => v.quality === 'HD') || data.result[0];
-                    if (hd?.url) videoUrl = hd.url;
-                }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/fb?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && Array.isArray(data?.results) && data.results.length > 0) {
-                    const hd = data.results.find(v => v.quality && v.quality.includes('HD')) || data.results[0];
-                    if (hd?.url && hd.url !== '/') videoUrl = hd.url;
-                }
-            } catch {}
-        }
+            }
+        } catch {}
 
         if (!videoUrl) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
@@ -1305,7 +1229,7 @@ cmd({
 
         await conn.sendMessage(from, { react: { text: '⬇️', key: m.key } });
 
-        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME);
+        const sent = await sendBySize(conn, from, mek, videoUrl, `Facebook_${Date.now()}`, 'mp4', BOT_NAME, qualityLabel);
 
         if (sent) {
             await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
@@ -1341,40 +1265,17 @@ cmd({
 
         let videoUrl = null;
 
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+        try {
+            const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
+            const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === true && data?.data) {
-                    videoUrl = data.data.high || data.data.low || null;
-                }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jawad-tech.vercel.app/downloader?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
-                    const hd = data.result.find(v => v.quality === 'HD') || data.result[0];
-                    if (hd?.url) videoUrl = hd.url;
-                }
-            } catch {}
-        }
-
-        if (!videoUrl) {
-            try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/fb?url=${encodeURIComponent(fbUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && Array.isArray(data?.results) && data.results.length > 0) {
-                    const hd = data.results.find(v => v.quality && v.quality.includes('HD')) || data.results[0];
-                    if (hd?.url && hd.url !== '/') videoUrl = hd.url;
-                }
-            } catch {}
-        }
+            if (data?.status === true && Array.isArray(data?.result) && data.result.length > 0) {
+                const hd = data.result.find(v => v.quality === 'HD');
+                const sd = data.result.find(v => v.quality === 'SD');
+                const pick = hd || sd || data.result[0];
+                if (pick?.url) videoUrl = pick.url;
+            }
+        } catch {}
 
         if (!videoUrl) {
             await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
