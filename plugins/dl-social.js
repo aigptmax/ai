@@ -1,5 +1,3 @@
-// JawadTechX 
-
 import { cmd } from '../command.js';
 import config from '../config.js';
 import axios from 'axios';
@@ -563,26 +561,6 @@ cmd({
 
         if (!success) {
             try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && data?.result?.data) {
-                    const d = data.result.data;
-                    const mediaUrl = d.hdplay || d.play || d.wmplay;
-                    if (mediaUrl) {
-                        await conn.sendMessage(from, {
-                            video: { url: mediaUrl },
-                            mimetype: 'video/mp4',
-                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
-                        }, { quoted: mek });
-                        success = true;
-                    }
-                }
-            } catch {}
-        }
-
-        if (!success) {
-            try {
                 const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(ttUrl)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
@@ -593,6 +571,26 @@ cmd({
                         caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${data.metadata?.title || 'N/A'}\n- 👤 *Author*: ${data.metadata?.author || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
                     }, { quoted: mek });
                     success = true;
+                }
+            } catch {}
+        }
+
+        if (!success) {
+            try {
+                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
+                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+
+                if (data?.status === 'success' && data?.result?.data) {
+                    const d = data.result.data;
+                    const mediaUrl = d.play;
+                    if (mediaUrl) {
+                        await conn.sendMessage(from, {
+                            video: { url: mediaUrl },
+                            mimetype: 'video/mp4',
+                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
+                        }, { quoted: mek });
+                        success = true;
+                    }
                 }
             } catch {}
         }
@@ -657,26 +655,6 @@ cmd({
 
         if (!success) {
             try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && data?.result?.data) {
-                    const d = data.result.data;
-                    const mediaUrl = d.hdplay || d.play || d.wmplay;
-                    if (mediaUrl) {
-                        await conn.sendMessage(from, {
-                            video: { url: mediaUrl },
-                            mimetype: 'video/mp4',
-                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
-                        }, { quoted: mek });
-                        success = true;
-                    }
-                }
-            } catch {}
-        }
-
-        if (!success) {
-            try {
                 const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(ttUrl)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
@@ -687,6 +665,26 @@ cmd({
                         caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${data.metadata?.title || 'N/A'}\n- 👤 *Author*: ${data.metadata?.author || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
                     }, { quoted: mek });
                     success = true;
+                }
+            } catch {}
+        }
+
+        if (!success) {
+            try {
+                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
+                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+
+                if (data?.status === 'success' && data?.result?.data) {
+                    const d = data.result.data;
+                    const mediaUrl = d.play;
+                    if (mediaUrl) {
+                        await conn.sendMessage(from, {
+                            video: { url: mediaUrl },
+                            mimetype: 'video/mp4',
+                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
+                        }, { quoted: mek });
+                        success = true;
+                    }
                 }
             } catch {}
         }
@@ -751,26 +749,6 @@ cmd({
 
         if (!success) {
             try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && data?.result?.data) {
-                    const d = data.result.data;
-                    const mediaUrl = d.hdplay || d.play || d.wmplay;
-                    if (mediaUrl) {
-                        await conn.sendMessage(from, {
-                            video: { url: mediaUrl },
-                            mimetype: 'video/mp4',
-                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
-                        }, { quoted: mek });
-                        success = true;
-                    }
-                }
-            } catch {}
-        }
-
-        if (!success) {
-            try {
                 const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(ttUrl)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
@@ -781,6 +759,26 @@ cmd({
                         caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${data.metadata?.title || 'N/A'}\n- 👤 *Author*: ${data.metadata?.author || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
                     }, { quoted: mek });
                     success = true;
+                }
+            } catch {}
+        }
+
+        if (!success) {
+            try {
+                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
+                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+
+                if (data?.status === 'success' && data?.result?.data) {
+                    const d = data.result.data;
+                    const mediaUrl = d.play;
+                    if (mediaUrl) {
+                        await conn.sendMessage(from, {
+                            video: { url: mediaUrl },
+                            mimetype: 'video/mp4',
+                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
+                        }, { quoted: mek });
+                        success = true;
+                    }
                 }
             } catch {}
         }
@@ -845,26 +843,6 @@ cmd({
 
         if (!success) {
             try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
-                const { data } = await axios.get(apiUrl, { timeout: 20000 });
-
-                if (data?.status === 'success' && data?.result?.data) {
-                    const d = data.result.data;
-                    const mediaUrl = d.hdplay || d.play || d.wmplay;
-                    if (mediaUrl) {
-                        await conn.sendMessage(from, {
-                            video: { url: mediaUrl },
-                            mimetype: 'video/mp4',
-                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
-                        }, { quoted: mek });
-                        success = true;
-                    }
-                }
-            } catch {}
-        }
-
-        if (!success) {
-            try {
                 const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(ttUrl)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
@@ -875,6 +853,26 @@ cmd({
                         caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${data.metadata?.title || 'N/A'}\n- 👤 *Author*: ${data.metadata?.author || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
                     }, { quoted: mek });
                     success = true;
+                }
+            } catch {}
+        }
+
+        if (!success) {
+            try {
+                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
+                const { data } = await axios.get(apiUrl, { timeout: 20000 });
+
+                if (data?.status === 'success' && data?.result?.data) {
+                    const d = data.result.data;
+                    const mediaUrl = d.play;
+                    if (mediaUrl) {
+                        await conn.sendMessage(from, {
+                            video: { url: mediaUrl },
+                            mimetype: 'video/mp4',
+                            caption: `📶 *TikTok Downloader*\n\n- 📝 *Title*: ${d.title || 'N/A'}\n- 👤 *Author*: ${d.author?.nickname || 'N/A'}\n- ❤‍🩹 *Quality*: HD\n\n> Powered by ${BOT_NAME}`
+                        }, { quoted: mek });
+                        success = true;
+                    }
                 }
             } catch {}
         }
@@ -939,23 +937,23 @@ cmd({
 
         if (!videoUrl) {
             try {
-                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
+                const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(ttUrl)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === 'success' && data?.result?.data) {
-                    const d = data.result.data;
-                    videoUrl = d.hdplay || d.play || d.wmplay || null;
+                if (data?.status === true && data?.result) {
+                    videoUrl = data.result;
                 }
             } catch {}
         }
 
         if (!videoUrl) {
             try {
-                const apiUrl = `https://jawad-tech.vercel.app/download/tiktok?url=${encodeURIComponent(ttUrl)}`;
+                const apiUrl = `https://jerrycoder.oggyapi.workers.dev/down/tiktok?url=${encodeURIComponent(ttUrl)}`;
                 const { data } = await axios.get(apiUrl, { timeout: 20000 });
 
-                if (data?.status === true && data?.result) {
-                    videoUrl = data.result;
+                if (data?.status === 'success' && data?.result?.data) {
+                    const d = data.result.data;
+                    videoUrl = d.play || null;
                 }
             } catch {}
         }
