@@ -1,3 +1,5 @@
+// JawadTechX
+
 import { cmd } from '../command.js';
 import config from '../config.js';
 import axios from 'axios';
